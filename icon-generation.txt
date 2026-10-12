@@ -1,0 +1,28 @@
+Jack's PDF app icon
+
+Created and edited with the built-in OpenAI image generation tool on 2026-10-12.
+The current icon adds Jack's above the original PDF lettering at the user's request.
+The generated PNG is the creative master. AppIcon.icns packages standard macOS
+16, 32, 128, 256, and 512 point sizes at 1x and 2x, resized with Apple's sips.
+Transparency has been retained. No raster artwork was programmatically altered.
+The PNG sizes were packaged into standard ICNS chunks after iconutil's encoding
+step rejected the iconset. The resulting ICNS was successfully decoded back into
+an iconset by iconutil and recognized by sips as a 1024 x 1024 ICNS.
+
+Original generation prompt:
+Use case: logo-brand
+Asset type: native macOS application icon for Jack's PDF Viewer.
+Primary request: create a beautiful minimalist colourful app icon, with the exact word "PDF" prominently and elegantly displayed.
+Subject: a single premium rounded-square macOS icon tile with a subtle paper/document impression, a refined vivid multicolour gradient, and large stylish serif lettering "PDF" as the central hero.
+Style/medium: polished modern native macOS icon, sculpted but restrained; clean silhouette; sophisticated subtle depth and highlights; graceful editorial serif typography inspired by Garamond with sufficiently sturdy strokes for a small dock icon.
+Composition/framing: square canvas, centered single icon occupying about 90% of canvas, balanced margins. Three letters P D F crisp, correctly spelled, highly legible, large across central portion. A small tasteful turned-paper corner may suggest a PDF document without clutter.
+Lighting/mood: luminous, premium, joyful, calm.
+Color palette: rich cobalt and violet transitioning to luminous coral and warm amber, creamy white typography, strong text contrast.
+Text (verbatim): "PDF"
+Constraints: actual transparent background outside the rounded-square tile; no extra words; no watermark; no Apple logo; no Adobe logo or Acrobat ribbon; no app name; no other surrounding objects. The icon must look attractive and readable at 32px as well as 1024px.
+
+Current edit prompt (referencing the existing icon as the sole edit target):
+Use case: text-localization.
+Edit target: the referenced existing Jack's PDF Viewer macOS icon. The user likes this icon exactly; make only one small addition.
+Add the exact text "Jack's" in a small elegant cream-white serif font centered horizontally in the clear area immediately above the existing large "PDF" lettering, below the curled paper corner. Make it a refined compact wordmark that complements the existing PDF serif typography, approximately one-third of the height of the existing PDF capitals, with a little breathing space above PDF. It must read "Jack's PDF" across these two lines.
+Preserve everything else as closely and exactly as possible: the original large PDF lettering, its position/size/font/cream colour, the vivid cobalt-violet-coral-amber gradients, all curved shapes, the upper-right paper curl, highlights, shadows, tile silhouette and rounded-square shape. Preserve the same square canvas, scale, framing and genuinely transparent exterior. Do not redesign the icon. Do not add any other text, logo, graphic or decorative object. Exact new text: "Jack's" with capital J, lowercase ack, apostrophe, lowercase s.

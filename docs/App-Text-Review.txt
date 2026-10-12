@@ -1,0 +1,860 @@
+Jack's PDF — App text review
+Version: 1.7 · Prepared: October 12, 2026
+148 numbered entries · 17 groups
+
+Complete review of app-defined wording and dynamic text templates, with tooltips, accessibility text and macOS-owned messages separated. Braces identify values supplied by a file, the reader state or macOS.
+
+Typography: Avenir 13 pt for all app-controlled text, including the filename. Native macOS panels retain system-controlled typography.
+Header: fixed slots show file size, PDF counter and page counter in that order. Filename and containing folder path use the left column, moving above the fixed group only for narrow windows. Menu shortcuts and Hide are removed; reading arrows and standard dialog Return/Escape remain.
+
+How to review: refer to an entry ID such as T042 when requesting a wording change. Text is exact unless its ownership label says example or generated. Where, Trigger and Note are review explanations, not app copy.
+
+Coverage boundary: all app-owned strings in the current reader are represented. macOS and file-provider wording varies by version, locale and circumstance; its families and representative replacement wording are included, not claimed exhaustive.
+
+IDENTITY, EMPTY STATE AND DOCUMENT HEADER
+
+[T001] Application name
+Trigger: Title bar beside the window buttons, app menu, empty reader and About heading.
+Text: Jack's PDF
+Ownership: App wording
+
+[T002] Window identity
+Trigger: A PDF is open.
+Text: {filename.pdf} — Jack's PDF
+Ownership: App template
+Note: The title bar shows the static app name. This document-specific title remains available to macOS window lists and accessibility.
+
+[T003] Empty reader
+Trigger: Launch without a PDF, or close the current PDF.
+Text: Open a PDF to begin
+Ownership: App wording
+
+[T004] Empty reader button
+Trigger: No PDF is open.
+Text: Open PDF…
+Ownership: App wording
+
+[T005] Filename
+Trigger: A PDF is open.
+Text: {filename.pdf}
+Ownership: Document data
+Note: Left header column, in Avenir 13 pt. The row uses all available width up to 12 pt before the first metadata bullet. Longer names scroll horizontally.
+
+[T135] File size
+Trigger: A PDF is open.
+Text: {formatted file size}
+Ownership: macOS-formatted document data
+Note: Right-aligned fixed slot immediately before the PDF counter and page counter, separated by bold bullets, in Avenir 13 pt. macOS formats the size, for example “1.2 MB”; units and number formatting vary by locale.
+
+[T006] Folder path
+Trigger: A PDF is open.
+Text: {containing folder path}
+Ownership: Document data
+Note: Second header row, in Avenir 13 pt, using available width up to 12 pt before Rotate. Longer paths scroll horizontally. The path identifies the containing folder and omits the filename. It is document data, not fixed app wording.
+
+[T007] Folder counter
+Trigger: Folder access exists and the current file is in its PDF list.
+Text: PDF {file number} of {PDF count}
+Ownership: App template
+Note: Right-aligned fixed slot between file size and the page counter, separated by bold bullets, in Avenir 13 pt. Example: PDF 3 of 13. The slot fits the widest index in this folder and keeps a fixed right edge during navigation.
+
+[T008] Folder-access button
+Trigger: The app cannot place the current PDF in an accessible folder list.
+Text: Browse folder…
+Ownership: App wording
+Note: Occupies the same fixed slot as the folder counter beside the file size; its accessibility label remains Enable folder navigation.
+
+[T146] Metadata separator
+Trigger: A PDF is open.
+Text: •
+Ownership: App wording
+Note: A centred bold Avenir Heavy bullet, still 13 pt, appears before file size and between file size, folder position and page number; hidden when no PDF is open.
+
+[T009] Page counter
+Trigger: A PDF page is current.
+Text: Page {page number} of {page count}
+Ownership: App template
+Note: Example: Page 3 of 20.
+
+[T010] Rotate button
+Trigger: No unsaved rotations are pending.
+Text: Rotate
+Ownership: App wording
+
+[T011] Rotate button
+Trigger: Rotations differ from the last saved rotation state.
+Text: Rotate •
+Ownership: App wording
+Note: The bullet marks unsaved rotations.
+
+ZOOM CONTROLS
+
+[T012] Fit button
+Trigger: Always present; disabled when zoom controls are unavailable.
+Text: Fit
+Ownership: App wording
+Note: The label stays “Fit” in both modes. Blue indicates active Fit mode; its accessibility value remains On or Off.
+
+[T014] Zoom-out button
+Trigger: Always present; disabled at the minimum or while controls are unavailable.
+Text: −
+Ownership: App wording
+
+[T015] Zoom-in button
+Trigger: Always present; disabled at the maximum or while controls are unavailable.
+Text: +
+Ownership: App wording
+
+[T016] Minimum zoom label
+Trigger: Above the left end of the zoom control.
+Text: Min. 20%
+Ownership: App wording
+
+[T017] Maximum zoom label
+Trigger: Above the right end of the zoom control.
+Text: Max. 200%
+Ownership: App wording
+
+[T018] Current zoom label
+Trigger: A PDF is open and zoom controls are enabled.
+Text: {rounded zoom percentage}%
+Ownership: App template
+Note: The label follows the slider thumb.
+
+[T019] Current zoom label
+Trigger: No PDF is open, or controls are disabled during loading or saving.
+Text: —
+Ownership: App wording
+
+MENUS AND RECENT FILES
+
+[T020] Application menu
+Trigger: Choose the app menu.
+Text: About Jack's PDF
+Ownership: App wording
+
+[T022] Application menu
+Trigger: Choose the app menu.
+Text: Quit Jack's PDF
+Ownership: App wording
+
+[T023] Menu heading
+Trigger: Main menu bar.
+Text: File
+Ownership: App wording
+
+[T024] File menu
+Trigger: Open a PDF.
+Text: Open PDF…
+Ownership: App wording
+
+[T025] File menu submenu
+Trigger: Inspect recent files.
+Text: Open Recent
+Ownership: App wording
+
+[T026] File menu
+Trigger: A document has rotation changes available to export.
+Text: Save As…
+Ownership: App wording
+
+[T027] File menu
+Trigger: A PDF is open.
+Text: Close PDF
+Ownership: App wording
+
+[T028] Recent files
+Trigger: History is empty.
+Text: No Recent PDFs
+Ownership: App wording
+
+[T029] Recent files
+Trigger: History has one or more entries.
+Text: Clear History
+Ownership: App wording
+
+[T030] Menu heading
+Trigger: Main menu bar.
+Text: View
+Ownership: App wording
+
+[T150] View menu
+Trigger: Enter native full screen.
+Text: Full Screen
+Ownership: App wording
+
+[T151] View menu
+Trigger: Leave native full screen.
+Text: Exit Full Screen
+Ownership: App wording
+
+[T038] Recent file entry
+Trigger: A file is in the locally retained list of up to ten recent PDFs.
+Text: {filename.pdf}
+Ownership: Document data
+Note: One menu item per file.
+
+RECENT-FILE RECOVERY
+
+[T152] Recovery heading
+Trigger: A recent PDF cannot be read at its remembered location.
+Text: Locate this recent PDF?
+Ownership: App wording
+
+[T153] Recovery explanation
+Trigger: A recent PDF cannot be read at its remembered location.
+Text: {filename.pdf}
+
+The file may have moved, be unavailable, or need your permission again. Select it to reopen it. Your current PDF will stay open until another PDF loads successfully.
+Ownership: App template
+Note: History is retained even without a usable bookmark.
+
+[T154] Recovery button
+Trigger: The recent-file recovery dialog is open.
+Text: Locate File…
+Ownership: App wording
+
+[T155] Recovery button
+Trigger: The recent-file recovery dialog is open.
+Text: Remove from History
+Ownership: App wording
+
+[T156] Recovery button
+Trigger: The recent-file recovery dialog is open.
+Text: Cancel
+Ownership: App wording
+
+[T157] Locate dialog title
+Trigger: Choose Locate File….
+Text: Locate Recent PDF
+Ownership: App wording
+
+[T158] Locate dialog message
+Trigger: Choose Locate File….
+Text: Select {filename.pdf} to restore access, or choose its new location.
+Ownership: App template
+
+[T159] Locate dialog confirmation
+Trigger: Select a replacement PDF.
+Text: Open PDF
+Ownership: App wording
+
+ROTATION DROPDOWN
+
+[T040] Current-page choice
+Trigger: Open the arrow beside Rotate.
+Text: Rotate current page    ·    Page {page number} only
+Ownership: App template
+Note: Four spaces appear on each side of the middle dot. The page number is the current page.
+
+[T041] All-pages choice
+Trigger: Open the arrow beside Rotate.
+Text: Rotate all pages    ·    All {page count} pages
+Ownership: App template
+Note: Four spaces appear on each side of the middle dot. The wording remains “pages” even for one page.
+
+OPEN PDF AND FOLDER ACCESS
+
+[T042] Open dialog message
+Trigger: Choose Open PDF… from the menu or empty reader.
+Text: Choose one PDF to view.
+Ownership: App wording
+
+[T043] Folder dialog title
+Trigger: The app needs access to a PDF’s containing folder for counting and navigation.
+Text: Browse PDFs in This Folder
+Ownership: App wording
+
+[T044] Folder dialog message
+Trigger: The containing folder has not been granted, or its saved access is unavailable.
+Text: Select “{folder name}” to count its PDFs and use the left and right arrow keys. Only this folder is needed.
+Ownership: App template
+Note: The curly quotation marks are part of the exact app wording.
+
+[T045] Folder dialog confirmation button
+Trigger: Choose the requested containing folder.
+Text: Use This Folder
+Ownership: App wording
+
+PASSWORD PROMPTS
+
+[T046] Password dialog heading
+Trigger: First attempt to open a locked PDF.
+Text: This PDF is password protected
+Ownership: App wording
+
+[T047] Password dialog heading
+Trigger: The supplied password was rejected.
+Text: That password didn't unlock the PDF
+Ownership: App wording
+
+[T048] Password dialog explanation
+Trigger: Both first and repeated password attempts.
+Text: Enter the password for {filename.pdf}. It will not be stored in history.
+Ownership: App template
+Note: The password field has no app-defined placeholder text.
+
+[T049] Password dialog confirmation button
+Trigger: Submit the entered password.
+Text: Open
+Ownership: App wording
+
+[T050] Password dialog cancellation button
+Trigger: Cancel opening this PDF.
+Text: Cancel
+Ownership: App wording
+
+SAVE AS AND UNSAVED ROTATIONS
+
+[T051] Save dialog title
+Trigger: Choose Save As… after rotating pages.
+Text: Save Rotated PDF As
+Ownership: App wording
+
+[T052] Save dialog message
+Trigger: The Save As panel is open.
+Text: To prevent accidental overwriting, original PDF is always protected. Choose a different filename.
+Ownership: App wording
+
+[T053] Suggested output filename
+Trigger: The Save As panel first opens.
+Text: {original filename without extension} — rotated.pdf
+Ownership: App template
+Note: The original folder is selected initially.
+
+[T054] Unsaved-rotation dialog heading
+Trigger: Close the app window or quit with unsaved rotations.
+Text: Keep your page rotations?
+Ownership: App wording
+
+[T055] Unsaved-rotation dialog explanation
+Trigger: Same situations as the preceding heading.
+Text: The original PDF has not changed. Save a rotated copy before closing.
+Ownership: App wording
+
+[T056] Unsaved-rotation dialog button
+Trigger: Save a rotated copy before continuing.
+Text: Save As…
+Ownership: App wording
+
+[T057] Unsaved-rotation dialog button
+Trigger: Close without saving the pending rotations.
+Text: Discard
+Ownership: App wording
+
+[T058] Unsaved-rotation dialog button
+Trigger: Stay with the current document and its rotations.
+Text: Cancel
+Ownership: App wording
+
+ERROR DIALOG: COMMON WORDING
+
+[T059] Error dialog heading
+Trigger: An opening, recent-file, snapshot or export error is presented.
+Text: Couldn't complete that action
+Ownership: App wording
+
+[T060] Error dialog button
+Trigger: Dismiss the error.
+Text: OK
+Ownership: App wording
+
+[T061] Error dialog explanation
+Trigger: A file cannot be interpreted as a PDF.
+Text: This file could not be opened as a PDF. It may be damaged or unsupported.
+Ownership: App wording
+
+[T062] Error dialog explanation
+Trigger: The PDF contains no pages.
+Text: This PDF does not contain any pages.
+Ownership: App wording
+
+[T063] Error dialog explanation
+Trigger: The original’s identity or change markers no longer match the opened file, or it moved/disappeared.
+Text: The original PDF changed, moved, or was removed. Reopen it before saving a rotated copy.
+Ownership: App wording
+
+[T064] Error dialog explanation
+Trigger: The export destination is the original PDF, a symbolic-link alias of it, or a hard link to it.
+Text: Choose a different filename. The original PDF cannot be replaced, including through a link or an alias of its path.
+Ownership: App wording
+
+[T065] Error dialog explanation
+Trigger: Save As is attempted on an encrypted PDF.
+Text: This encrypted PDF can be viewed, but saving rotated copies is unavailable because its protection cannot be safely preserved.
+Ownership: App wording
+
+[T066] Error dialog explanation
+Trigger: A requested page index or rotation is invalid.
+Text: The requested page rotation is invalid. Reopen the PDF and try again.
+Ownership: App wording
+
+ERROR DIALOG: DESTINATION CHECKS
+
+[T067] Error dialog explanation
+Trigger: The destination is not a file URL.
+Text: The copy cannot be saved here. Choose a local file or a mounted folder.
+Ownership: App wording
+
+[T068] Error dialog explanation
+Trigger: The destination name is invalid or does not end in .pdf.
+Text: The copy cannot be saved here. Choose a valid filename ending in .pdf.
+Ownership: App wording
+
+[T069] Error dialog explanation
+Trigger: The filename exceeds the supported length check.
+Text: The copy cannot be saved here. The filename is too long for this folder.
+Ownership: App wording
+
+[T070] Error dialog explanation
+Trigger: The destination changed between validation and the final save.
+Text: The copy cannot be saved here. Another operation changed this destination. Please choose Save As again.
+Ownership: App wording
+
+[T071] Error dialog explanation
+Trigger: The app cannot inspect the destination safely.
+Text: The copy cannot be saved here. The destination cannot be inspected safely.
+Ownership: App wording
+
+[T072] Error dialog explanation
+Trigger: An existing destination is a folder, symbolic link, or another non-regular file.
+Text: The copy cannot be saved here. Choose a regular file; folders and symbolic links cannot be replaced.
+Ownership: App wording
+
+ERROR DIALOG: WRITING THE NEW PDF
+
+[T073] Error dialog explanation
+Trigger: Foundation cannot create a safe replacement location.
+Text: The PDF copy could not be saved. A safe working location could not be created. {macOS error detail}
+Ownership: App template + macOS detail
+Note: The final detail is supplied and localized by macOS.
+
+[T074] Error dialog explanation
+Trigger: The export working file cannot be created.
+Text: The PDF copy could not be saved. The selected folder is not writable.
+Ownership: App wording
+
+[T075] Error dialog explanation
+Trigger: PDFKit cannot write a complete, reopenable PDF with the expected page count.
+Text: The PDF copy could not be saved. PDFKit could not produce a complete PDF. The destination was not changed.
+Ownership: App wording
+
+[T076] Error dialog explanation
+Trigger: The saved page rotations do not match the requested rotations.
+Text: The PDF copy could not be saved. The saved page rotations could not be verified. The destination was not changed.
+Ownership: App wording
+
+[T077] Error dialog explanation
+Trigger: The finished working file cannot be reopened for finalization.
+Text: The PDF copy could not be saved. The working file became unavailable.
+Ownership: App wording
+
+[T078] Error dialog explanation
+Trigger: The storage device cannot complete the file synchronization.
+Text: The PDF copy could not be saved. The storage device could not finish writing the file.
+Ownership: App wording
+
+[T079] Error dialog explanation
+Trigger: A coordinated move or replacement fails.
+Text: The PDF copy could not be saved. {macOS error detail}
+Ownership: App template + macOS detail
+Note: For example, system-provided details about permissions, storage, a disconnected volume, or a file provider. Exact wording is not app-controlled.
+
+ERROR DIALOG: OPENING AND PRIVATE WORKING COPIES
+
+[T080] Error dialog explanation
+Trigger: The private working-copy location cannot be created.
+Text: The file could not be accessed. A private working copy could not be created.
+Ownership: App wording
+
+[T081] Error dialog explanation
+Trigger: The app cannot secure the private copy, including its lock or private cloned file.
+Text: The file could not be accessed. The private working copy could not be secured.
+Ownership: App wording
+
+[T082] Error dialog explanation
+Trigger: The original PDF cannot be opened for reading.
+Text: The file could not be accessed. The selected PDF is unavailable or access was denied.
+Ownership: App wording
+
+[T083] Error dialog explanation
+Trigger: The selected input is not a regular file.
+Text: The file could not be accessed. Select a regular PDF file.
+Ownership: App wording
+
+[T084] Error dialog explanation
+Trigger: A new private working file cannot be created.
+Text: The file could not be accessed. A private working copy could not be written.
+Ownership: App wording
+
+[T085] Error dialog explanation
+Trigger: Reading the PDF fails partway through.
+Text: The file could not be accessed. The PDF could not be read completely.
+Ownership: App wording
+
+[T086] Error dialog explanation
+Trigger: Writing the private working copy fails partway through.
+Text: The file could not be accessed. The private working copy could not be completed. Check available storage.
+Ownership: App wording
+
+[T087] Error dialog explanation
+Trigger: A Foundation file operation fails outside an app-defined wrapper.
+Text: {macOS error detail}
+Ownership: macOS-generated detail
+Note: Shown under “Couldn't complete that action”. These localized descriptions are generated by macOS and cannot be exhaustively listed from app text.
+
+DEFINED SUPPORT WORDING NOT NORMALLY SHOWN DIRECTLY
+
+[T088] Password-required support error
+Trigger: The loader reports that a password is required.
+Text: This PDF requires a password.
+Ownership: Defined fallback wording
+Note: The reader intercepts this condition and displays “This PDF is password protected” instead. Included to account for all defined support messages.
+
+[T089] Incorrect-password support error
+Trigger: The loader rejects a password.
+Text: The password was not accepted. Please try again.
+Ownership: Defined fallback wording
+Note: The reader intercepts this condition and displays “That password didn't unlock the PDF” instead.
+
+[T090] File-identity support error
+Trigger: File identity cannot be read or the item is not a regular file.
+Text: The file could not be accessed. Select a readable, regular PDF file.
+Ownership: Defined fallback wording
+Note: Current reader call sites suppress this helper error and report the source-changed message instead.
+
+[T091] Dialog fallback button
+Trigger: An app-owned dialog is created without explicit buttons.
+Text: OK
+Ownership: Defined fallback wording
+Note: Current app dialogs supply their own buttons; this is the dialog component’s defined fallback.
+
+ABOUT
+
+[T148] About icon delimiter
+Trigger: About is open.
+Text: • • •
+Ownership: App wording
+Note: Appears below the centred app icon and above the app heading.
+
+[T092] About heading
+Trigger: Choose About Jack's PDF.
+Text: Jack's PDF
+Ownership: App wording
+
+[T140] About heading delimiter
+Trigger: About is open.
+Text: • • •
+Ownership: App wording
+Note: Appears after the app heading and before the descriptor.
+
+[T098] About information
+Trigger: About is open.
+Text: A private, minimal PDF viewer for Mac.
+Ownership: App wording
+Note: Appears between the heading delimiter and the descriptor delimiter.
+
+[T141] About descriptor delimiter
+Trigger: About is open.
+Text: • • •
+Ownership: App wording
+Note: Appears after the descriptor and before Instructions.
+
+[T136] About instructions heading
+Trigger: About is open.
+Text: Instructions
+Ownership: App wording
+
+[T145] About page-selection instruction
+Trigger: About is open.
+Text: Click a page to make it active
+Ownership: App wording
+
+[T137] About reading instruction
+Trigger: About is open.
+Text: ↑ / ↓ Scroll up / down
+Ownership: App wording
+
+[T138] About file-navigation instruction
+Trigger: About is open.
+Text: ← / → Previous / next PDF in this folder
+Ownership: App wording
+
+[T142] About instructions delimiter
+Trigger: About is open.
+Text: • • •
+Ownership: App wording
+Note: Appears after the page-selection and arrow instructions and immediately above Created by Nikhil Sharma.
+
+[T094] About information
+Trigger: About is open.
+Text: Created by Nikhil Sharma
+Ownership: App wording
+
+[T095] About information
+Trigger: About is open.
+Text: Made with OpenAI ChatGPT models.
+Ownership: App wording
+
+[T096] About information
+Trigger: About is open.
+Text: Last updated: October 12, 2026
+Ownership: App wording
+
+[T097] About information
+Trigger: About is open.
+Text: Version 1.7
+Ownership: App wording
+
+[T139] About text delimiter
+Trigger: About is open.
+Text: • • •
+Ownership: App wording
+Note: Separates the app information from the memorial.
+
+[T093] About tribute
+Trigger: About is open.
+Text: In loving memory of Jack, our sweetest companion and forever friend.
+You are still in our hearts and our lives every day.
+Ownership: App wording
+Note: Appears after the delimiter. Jack’s photograph is the last content item, below this memorial.
+
+[T099] About button
+Trigger: Dismiss About.
+Text: Done
+Ownership: App wording
+
+TOOLTIPS
+
+[T100] Filename
+Trigger: Hover over the filename.
+Text: {filename.pdf}
+Ownership: Document data
+
+[T101] Folder path
+Trigger: Hover over the folder path.
+Text: {containing folder path}
+Ownership: Document data
+
+[T102] Recent-file menu entry
+Trigger: Hover over a recent filename.
+Text: {full file path}
+Ownership: Document data
+
+[T143] File size
+Trigger: Hover over the file size.
+Text: {formatted file size}
+Ownership: macOS-formatted document data
+
+[T144] Page counter
+Trigger: Hover over the current page counter.
+Text: Page {current page} of {total pages}
+Ownership: App template
+
+[T103] Folder counter
+Trigger: Hover when the folder count is available.
+Text: PDF {file number} of {PDF count}
+PDFs in this folder, sorted by filename
+Ownership: App template
+
+[T104] Folder-access button
+Trigger: Hover when folder navigation is unavailable.
+Text: Allow access to this PDF's folder
+Ownership: App wording
+
+[T105] Rotate button
+Trigger: Hover over Rotate.
+Text: Rotate the current page 90° clockwise
+Ownership: App wording
+
+[T106] Fit button
+Trigger: Hover over Fit.
+Text: Fit the current page to the window width
+Ownership: App wording
+
+[T107] Zoom-out button
+Trigger: Hover over −.
+Text: Zoom out by 5% (minimum 20%)
+Ownership: App wording
+
+[T108] Zoom-in button
+Trigger: Hover over +.
+Text: Zoom in by 5% (maximum 200%)
+Ownership: App wording
+
+ACCESSIBILITY TEXT
+
+[T149] About app icon label
+Trigger: An assistive tool identifies the app icon in the title bar or at the top of About.
+Text: Jack's PDF app icon
+Ownership: App wording
+
+[T109] About photograph label
+Trigger: An assistive tool identifies the photograph in About.
+Text: Jack
+Ownership: App wording
+
+[T147] Folder-access button label
+Trigger: An assistive tool identifies Browse folder… when folder access is needed.
+Text: Enable folder navigation
+Ownership: App wording
+
+[T110] PDF view label
+Trigger: An assistive tool identifies the document area.
+Text: PDF document
+Ownership: App wording
+
+[T111] PDF view value
+Trigger: An assistive tool reads the current page.
+Text: {text extracted from the current PDF page}
+Ownership: Document data
+
+[T112] Rotate icon description
+Trigger: An assistive tool identifies the rotation icon.
+Text: Rotate current page clockwise
+Ownership: App wording
+
+[T113] Rotation dropdown icon description
+Trigger: An assistive tool identifies the dropdown arrow.
+Text: Rotation options
+Ownership: App wording
+
+[T114] Fit button label
+Trigger: An assistive tool identifies Fit.
+Text: Fit to width
+Ownership: App wording
+
+[T115] Fit button value
+Trigger: Fit is selected.
+Text: On
+Ownership: App wording
+
+[T116] Fit button value
+Trigger: Manual zoom is selected.
+Text: Off
+Ownership: App wording
+
+[T117] Zoom-out button label
+Trigger: An assistive tool identifies −.
+Text: Zoom out
+Ownership: App wording
+
+[T118] Zoom-in button label
+Trigger: An assistive tool identifies +.
+Text: Zoom in
+Ownership: App wording
+
+[T119] Zoom slider label
+Trigger: An assistive tool identifies the slider.
+Text: Zoom level
+Ownership: App wording
+
+[T120] Zoom slider help
+Trigger: Fit mode is active and controls are enabled.
+Text: Fit, {rounded zoom percentage} percent
+Ownership: App template
+
+[T121] Zoom slider help
+Trigger: Manual zoom is active and controls are enabled.
+Text: {rounded zoom percentage} percent
+Ownership: App template
+
+[T122] Zoom slider help
+Trigger: No PDF is open, or zoom controls are disabled while busy.
+Text: No PDF
+Ownership: App wording
+
+[T123] Zoom slider value
+Trigger: An assistive tool reads or changes the slider.
+Text: {numeric slider value}
+Ownership: App numeric value + macOS speech
+
+MACOS-OWNED TEXT AND SYSTEM INTEGRATION
+
+[T125] Open panel controls
+Trigger: Open PDF… displays the native file picker.
+Text: Open · Cancel
+Ownership: macOS examples — not exhaustive
+Note: Representative English labels. macOS owns these default button captions, picker headings, search labels, sidebar names, filenames and localization.
+
+[T126] Folder picker controls
+Trigger: The native containing-folder picker is open.
+Text: Cancel
+Ownership: macOS example — not exhaustive
+Note: “Use This Folder” and the explanatory message are app-owned and listed above. The remaining picker controls are macOS-owned.
+
+[T127] Save panel controls
+Trigger: Save As displays the native save panel.
+Text: Save · Cancel · Save As: · Where: · Tags: · New Folder
+Ownership: macOS examples — not exhaustive
+Note: Representative English labels. Availability and exact captions depend on macOS, panel layout and locale.
+
+[T128] Replace-existing-file warning
+Trigger: The Save As filename already exists.
+Text: “{filename}” already exists. Do you want to replace it?
+Ownership: macOS example — not exhaustive
+Note: Representative English wording, not an app-defined literal. macOS may add an explanation about replacement. Choosing the original can encounter this native warning before the app independently rejects the original destination.
+
+[T129] Replace warning buttons
+Trigger: The native replacement warning is shown.
+Text: Cancel · Replace
+Ownership: macOS examples — not exhaustive
+Note: Representative English labels. Exact wording and localization belong to macOS.
+
+[T130] Filename and new-folder validation
+Trigger: A user enters an unsupported name, duplicate folder name, or invalid save destination.
+Text: {macOS validation message}
+Ownership: macOS-generated wording
+Note: Native name rules, supported characters, reserved names and filesystem restrictions can produce additional localized messages. These cannot be exhaustively fixed in an app-copy inventory.
+
+[T131] File-provider and permission dialogs
+Trigger: A location is unavailable, requires access, or belongs to a file provider.
+Text: {macOS or file-provider message}
+Ownership: macOS/provider-generated wording
+Note: Messages can vary with the operating system, selected location and installed provider.
+
+[T132] Window controls and standard text-field menus
+Trigger: Use the close/minimize window controls, a picker text field, or its standard context menu.
+Text: {standard macOS control or editing label}
+Ownership: macOS-generated wording
+Note: These controls may expose localized Close, Minimize, Cut, Copy, Paste and similar standard text. The green window zoom button is hidden. PDF-content context menus are disabled.
+
+[T133] Finder/document-type integration
+Trigger: macOS consults the app’s declared PDF document type.
+Text: PDF document
+Ownership: App wording
+Note: App-supplied document-type name; exact location of display is controlled by macOS.
+
+[T134] Finder/application metadata
+Trigger: macOS displays the app’s human-readable copyright metadata.
+Text: Copyright © 2026 Nikhil Sharma
+Ownership: App wording
+Note: Not a separate in-app document-properties feature.
+
+SCENARIOS WITH NO ADDITIONAL APP MESSAGE
+
+Menu commands and reading keys: All app menu keyboard shortcuts are removed, and the app menu has no Hide command. Menu actions are available by clicking. Up/down reading and left/right PDF navigation remain, as do standard dialog Return/Escape actions.
+
+Window sizing: The green window zoom button is hidden. View contains only Full Screen (or Exit Full Screen), with no keyboard shortcut. There is no Window menu.
+
+Switching or closing a PDF: Left/right navigation, Open, Open Recent and Close PDF discard unsaved rotations without a rotation warning. A failed or canceled new-file load preserves the current document and its rotations. The warning appears only when closing the app window or quitting.
+
+Successful save: No success alert or confirmation sentence is displayed. The unsaved-rotation bullet clears.
+
+Loading or saving: A spinner appears and controls disable. There is no app-owned “Loading…” or “Saving…” caption.
+
+Clearing history: The history clears immediately, without a confirmation dialog. The menu then shows “No Recent PDFs”.
+
+Declining folder access or choosing a different folder: No warning is shown. “Enable folder navigation” remains available.
+
+Folder scan or saved folder-access failure: There is no separate error alert for this path; the counter returns to “Enable folder navigation”.
+
+First or last PDF in a folder: An arrow beyond the end does nothing; there is no wraparound or boundary message.
+
+Canceling Open, Save As or a password prompt: No additional cancellation message is displayed.
+
+Starting another app instance: The app keeps a single instance; there is no app-owned second-instance warning.
+
+Blocked editing, PDF actions or printing: No app-owned warning text is displayed. There are no Print, Share, document-properties or editing menu items.
+
+PDF content itself: Page text, existing annotation appearances, form values and image text come from the selected document and are outside this fixed-copy inventory.
