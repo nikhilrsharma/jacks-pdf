@@ -1,11 +1,11 @@
 Jack's PDF — App text review
-Version: 1.7 · Prepared: October 12, 2026
-148 numbered entries · 17 groups
+Version: 1.8.1 · Prepared: October 13, 2026
+171 numbered entries · 19 groups
 
 Complete review of app-defined wording and dynamic text templates, with tooltips, accessibility text and macOS-owned messages separated. Braces identify values supplied by a file, the reader state or macOS.
 
 Typography: Avenir 13 pt for all app-controlled text, including the filename. Native macOS panels retain system-controlled typography.
-Header: fixed slots show file size, PDF counter and page counter in that order. Filename and containing folder path use the left column, moving above the fixed group only for narrow windows. Menu shortcuts and Hide are removed; reading arrows and standard dialog Return/Escape remain.
+Header: fixed slots show file size, PDF counter and page counter in that order. Filename and containing folder path use the left column, moving above the fixed group only for narrow windows. Selected menu and reader shortcuts are enabled; Hide remains removed; reading arrows and standard dialog Return/Escape remain.
 
 How to review: refer to an entry ID such as T042 when requesting a wording change. Text is exact unless its ownership label says example or generated. Where, Trigger and Note are review explanations, not app copy.
 
@@ -131,6 +131,11 @@ MENUS AND RECENT FILES
 [T020] Application menu
 Trigger: Choose the app menu.
 Text: About Jack's PDF
+Ownership: App wording
+
+[T177] Application menu
+Trigger: Between About and Quit.
+Text: Shortcuts
 Ownership: App wording
 
 [T022] Application menu
@@ -260,20 +265,76 @@ Trigger: Choose Open PDF… from the menu or empty reader.
 Text: Choose one PDF to view.
 Ownership: App wording
 
-[T043] Folder dialog title
+[T160] Folder dialog title
 Trigger: The app needs access to a PDF’s containing folder for counting and navigation.
-Text: Browse PDFs in This Folder
+Text: Enable Navigation Between PDFs
 Ownership: App wording
 
-[T044] Folder dialog message
+[T161] Folder dialog message
 Trigger: The containing folder has not been granted, or its saved access is unavailable.
-Text: Select “{folder name}” to count its PDFs and use the left and right arrow keys. Only this folder is needed.
-Ownership: App template
-Note: The curly quotation marks are part of the exact app wording.
+Text: File: {filename.pdf}
+Folder: {full folder path}
 
-[T045] Folder dialog confirmation button
+Select this folder to let Jack’s PDF read it, show its PDF count, and open neighbouring PDFs with the Left and Right arrow keys.
+
+Choose Cancel to read only this PDF. Folder navigation and the folder’s PDF count will remain unavailable.
+Ownership: App template
+Note: Native macOS folder approval is required; cancel keeps this PDF readable.
+
+[T162] Folder dialog confirmation button
 Trigger: Choose the requested containing folder.
-Text: Use This Folder
+Text: Allow Folder Access
+Ownership: App wording
+
+HISTORY CLEARING AND ENCRYPTED STORAGE
+
+[T163] Clear history confirmation heading
+Trigger: Choose Clear History.
+Text: Clear history and saved folder access?
+Ownership: App wording
+
+[T164] Clear history confirmation message
+Trigger: Before any history or folder permissions are removed.
+Text: This will remove all recently opened PDFs from history and forget all folder permissions saved by Jack’s PDF. You will need to approve folder access again to browse neighbouring PDFs.
+
+Your files will not be deleted or changed.
+Ownership: App wording
+
+[T165] Clear history buttons
+Trigger: Explicit confirmation is required.
+Text: Cancel
+Clear History and Folder Access
+Ownership: App wording
+Note: Cancel is the default for Return and Escape. No change is made until the destructive choice is clicked.
+
+[T166] Encrypted storage warning heading
+Trigger: Saved history cannot be read or written.
+Text: Couldn’t save or unlock private history
+Ownership: App wording
+
+[T167] Encrypted storage warning suffix
+Trigger: After the specific storage error.
+Text: You can continue reading PDFs, but recent history and folder approvals may not be saved. The app will not save this information unencrypted.
+Ownership: App wording
+
+[T168] Storage error
+Trigger: Keychain, missing key, verification or compatibility failure.
+Text: macOS Keychain did not allow access to the encryption key. Unlock your login keychain or approve Jack’s PDF if macOS asks, then restart the app.
+Ownership: App wording
+
+[T169] Storage error
+Trigger: Keychain, missing key, verification or compatibility failure.
+Text: The encryption key for saved history is missing from macOS Keychain. Existing saved data has been left unchanged.
+Ownership: App wording
+
+[T170] Storage error
+Trigger: Keychain, missing key, verification or compatibility failure.
+Text: Saved history could not be verified or decrypted. Existing saved data has been left unchanged.
+Ownership: App wording
+
+[T171] Storage error
+Trigger: Keychain, missing key, verification or compatibility failure.
+Text: Saved history was created by an unsupported version of Jack’s PDF. Update the app to read it.
 Ownership: App wording
 
 PASSWORD PROMPTS
@@ -558,33 +619,7 @@ Note: Appears between the heading delimiter and the descriptor delimiter.
 Trigger: About is open.
 Text: • • •
 Ownership: App wording
-Note: Appears after the descriptor and before Instructions.
-
-[T136] About instructions heading
-Trigger: About is open.
-Text: Instructions
-Ownership: App wording
-
-[T145] About page-selection instruction
-Trigger: About is open.
-Text: Click a page to make it active
-Ownership: App wording
-
-[T137] About reading instruction
-Trigger: About is open.
-Text: ↑ / ↓ Scroll up / down
-Ownership: App wording
-
-[T138] About file-navigation instruction
-Trigger: About is open.
-Text: ← / → Previous / next PDF in this folder
-Ownership: App wording
-
-[T142] About instructions delimiter
-Trigger: About is open.
-Text: • • •
-Ownership: App wording
-Note: Appears after the page-selection and arrow instructions and immediately above Created by Nikhil Sharma.
+Note: Appears after the descriptor and immediately above Created by Nikhil Sharma.
 
 [T094] About information
 Trigger: About is open.
@@ -596,14 +631,14 @@ Trigger: About is open.
 Text: Made with OpenAI ChatGPT models.
 Ownership: App wording
 
-[T096] About information
+[T172] About information
 Trigger: About is open.
-Text: Last updated: October 12, 2026
+Text: Last updated: October 13, 2026
 Ownership: App wording
 
 [T097] About information
 Trigger: About is open.
-Text: Version 1.7
+Text: Version 1.8.1
 Ownership: App wording
 
 [T139] About text delimiter
@@ -621,6 +656,101 @@ Note: Appears after the delimiter. Jack’s photograph is the last content item,
 
 [T099] About button
 Trigger: Dismiss About.
+Text: Done
+Ownership: App wording
+
+SHORTCUTS
+
+[T178] Shortcuts heading
+Trigger: Choose Jack’s PDF → Shortcuts.
+Text: Shortcuts
+Ownership: App wording
+
+[T179] Open PDF
+Trigger: The Shortcuts modal is open.
+Text: ⌘O
+Ownership: App wording
+
+[T180] Save As
+Trigger: The Shortcuts modal is open.
+Text: ⇧⌘S
+Ownership: App wording
+
+[T181] Close window / Quit
+Trigger: The Shortcuts modal is open.
+Text: ⌘W / ⌘Q
+Ownership: App wording
+
+[T182] Enter / exit full screen
+Trigger: The Shortcuts modal is open.
+Text: ⌃⌘F
+Ownership: App wording
+
+[T183] Scroll up / down
+Trigger: The Shortcuts modal is open.
+Text: ↑ / ↓
+Ownership: App wording
+
+[T184] Previous / next PDF
+Trigger: The Shortcuts modal is open.
+Text: ← / →
+Ownership: App wording
+
+[T185] Scroll a screen up
+Trigger: The Shortcuts modal is open.
+Text: Page Up or fn↑
+Ownership: App wording
+
+[T186] Scroll a screen down
+Trigger: The Shortcuts modal is open.
+Text: Page Down or fn↓
+Ownership: App wording
+
+[T187] Zoom in / out
+Trigger: The Shortcuts modal is open.
+Text: ⌘+ (or ⌘=) / ⌘−
+Ownership: App wording
+
+[T188] Actual size (100%) / Fit width
+Trigger: The Shortcuts modal is open.
+Text: ⌘0 / ⌘9
+Ownership: App wording
+
+[T189] Rotate current page clockwise
+Trigger: The Shortcuts modal is open.
+Text: ⌘R
+Ownership: App wording
+
+[T190] Rotate all pages clockwise
+Trigger: The Shortcuts modal is open.
+Text: ⌥⌘R
+Ownership: App wording
+
+[T191] Copy / Select all text
+Trigger: The Shortcuts modal is open.
+Text: ⌘C / ⌘A
+Ownership: App wording
+
+[T192] Clear selection / dismiss dialog
+Trigger: The Shortcuts modal is open.
+Text: Esc
+Ownership: App wording
+
+[T193] Use highlighted dialog button
+Trigger: The Shortcuts modal is open.
+Text: Return
+Ownership: App wording
+
+[T194] Shortcut notes
+Trigger: Below the two-column shortcut list.
+Text: ⌘ Command   ⌥ Option   ⌃ Control   ⇧ Shift
+Folder navigation requires access to the folder.
+Text selection and copying depend on PDF permissions.
+Ownership: App wording
+Note: Same 13-point Avenir font; no scroll view.
+
+[T195] Shortcuts button
+Trigger: Dismiss Shortcuts.
 Text: Done
 Ownership: App wording
 
@@ -662,24 +792,24 @@ Trigger: Hover when folder navigation is unavailable.
 Text: Allow access to this PDF's folder
 Ownership: App wording
 
-[T105] Rotate button
+[T173] Rotate button
 Trigger: Hover over Rotate.
-Text: Rotate the current page 90° clockwise
+Text: Rotate the current page 90° clockwise (⌘R)
 Ownership: App wording
 
-[T106] Fit button
+[T174] Fit button
 Trigger: Hover over Fit.
-Text: Fit the current page to the window width
+Text: Fit the current page to the window width (⌘9)
 Ownership: App wording
 
-[T107] Zoom-out button
+[T175] Zoom-out button
 Trigger: Hover over −.
-Text: Zoom out by 5% (minimum 20%)
+Text: Zoom out by 5% (minimum 20%, ⌘−)
 Ownership: App wording
 
-[T108] Zoom-in button
+[T176] Zoom-in button
 Trigger: Hover over +.
-Text: Zoom in by 5% (maximum 200%)
+Text: Zoom in by 5% (maximum 200%, ⌘+)
 Ownership: App wording
 
 ACCESSIBILITY TEXT
@@ -781,7 +911,7 @@ Note: Representative English labels. macOS owns these default button captions, p
 Trigger: The native containing-folder picker is open.
 Text: Cancel
 Ownership: macOS example — not exhaustive
-Note: “Use This Folder” and the explanatory message are app-owned and listed above. The remaining picker controls are macOS-owned.
+Note: “Allow Folder Access” and the explanatory message are app-owned and listed above. The remaining picker controls are macOS-owned.
 
 [T127] Save panel controls
 Trigger: Save As displays the native save panel.
@@ -833,9 +963,9 @@ Note: Not a separate in-app document-properties feature.
 
 SCENARIOS WITH NO ADDITIONAL APP MESSAGE
 
-Menu commands and reading keys: All app menu keyboard shortcuts are removed, and the app menu has no Hide command. Menu actions are available by clicking. Up/down reading and left/right PDF navigation remain, as do standard dialog Return/Escape actions.
+Menu commands and reading keys: The selected Open, Save As, Close Window, Quit, Full Screen, zoom and rotation shortcuts are enabled; Find and Save are not. The app menu has no Hide command. Up/down reading and left/right PDF navigation remain, as do standard dialog Return/Escape actions.
 
-Window sizing: The green window zoom button is hidden. View contains only Full Screen (or Exit Full Screen), with no keyboard shortcut. There is no Window menu.
+Window sizing: The green window zoom button is hidden. View contains only Full Screen (or Exit Full Screen), using Control-Command-F. There is no Window menu.
 
 Switching or closing a PDF: Left/right navigation, Open, Open Recent and Close PDF discard unsaved rotations without a rotation warning. A failed or canceled new-file load preserves the current document and its rotations. The warning appears only when closing the app window or quitting.
 
@@ -843,7 +973,7 @@ Successful save: No success alert or confirmation sentence is displayed. The uns
 
 Loading or saving: A spinner appears and controls disable. There is no app-owned “Loading…” or “Saving…” caption.
 
-Clearing history: The history clears immediately, without a confirmation dialog. The menu then shows “No Recent PDFs”.
+Clearing history: A confirmation explains that recent history and saved folder access will be removed. Cancel is the default; clearing occurs only after explicit confirmation. The menu then shows “No Recent PDFs”.
 
 Declining folder access or choosing a different folder: No warning is shown. “Enable folder navigation” remains available.
 

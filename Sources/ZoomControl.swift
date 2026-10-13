@@ -34,9 +34,9 @@ final class ZoomControl: NSView {
         fitButton.setAccessibilityLabel("Fit to width")
         minusButton.setAccessibilityLabel("Zoom out")
         plusButton.setAccessibilityLabel("Zoom in")
-        fitButton.toolTip = "Fit the current page to the window width"
-        minusButton.toolTip = "Zoom out by 5% (minimum 20%)"
-        plusButton.toolTip = "Zoom in by 5% (maximum 200%)"
+        fitButton.toolTip = "Fit the current page to the window width (⌘9)"
+        minusButton.toolTip = "Zoom out by 5% (minimum 20%, ⌘−)"
+        plusButton.toolTip = "Zoom in by 5% (maximum 200%, ⌘+)"
 
         // Native ticks still draw with some macOS appearances even when their cell
         // drawing hook is overridden. Snap in the action instead, with no ticks.
@@ -117,8 +117,10 @@ final class ZoomControl: NSView {
     }
 
     @objc private func chooseFit() { if isEnabled { onFit?() } }
-    @objc private func zoomOut() { if isEnabled { onManual?(Self.normalized(percentage) - 5) } }
-    @objc private func zoomIn() { if isEnabled { onManual?(Self.normalized(percentage) + 5) } }
+    func decrease() { if isEnabled { onManual?(max(20, Self.normalized(percentage) - 5)) } }
+    @objc private func zoomOut() { decrease() }
+    func increase() { if isEnabled { onManual?(min(200, Self.normalized(percentage) + 5)) } }
+    @objc private func zoomIn() { increase() }
     @objc private func sliderChanged() {
         guard isEnabled else { return }
         let value = Self.normalized(slider.doubleValue)

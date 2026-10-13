@@ -207,3 +207,35 @@ Live visual checks confirmed the compact toolbar and matching About text. Instal
 - Removed EXIF and editing metadata from the public Jack photograph without recompression. Exact decoded RGB equality with the original was verified; the image dimensions remain 1024 × 768. This supersedes earlier byte-for-byte photo packaging notes.
 - Added the MIT licence, a visually reviewed eight-page PRD, public build/download instructions and the wording inventory. Private documents, preferences, bookmarks, intermediate logs and signing identities are excluded from publication.
 - The version 1.7 binary is ad-hoc signed with App Sandbox and the hardened runtime; it is not notarized. The Intel architecture and every supported macOS version have not been tested.
+
+## Version 1.8 local update - October 13, 2026
+
+- Added explicit Clear History confirmation. Cancel is the default for Return/Escape; confirmation clears recent entries and saved folder approvals, invalidates active folder navigation and prevents an in-flight folder scan from restoring the old catalog. The open PDF and rotations remain unchanged.
+- The native folder picker now explains optional navigation access, showing filename and full folder path. Declining keeps the current PDF readable; arrow keys do not repeatedly request access. Browse folder remains available.
+- Enabled Open, Save As, Close Window, Quit, Full Screen, manual zoom, 100%, Fit and current/all-page rotation shortcuts. Existing copy, select-all, arrow scrolling, page-up/down and dialog keys remain. No Find shortcut or feature was added. View still contains only Full Screen.
+- Added AES-256-GCM encrypted local history and up to 10,000 read-only folder bookmarks, with least-recently-used eviction. The local Keychain holds a random 256-bit key with an app-specific ACL. Migration removes legacy preferences only after encrypted write/read verification. Missing keys or invalid ciphertext never trigger silent replacement or plaintext fallback. Only the current folder is actively leased.
+- Both complete existing native suites passed. New storage tests passed migration, restart, authenticated-encryption/tampering/wrong-key checks, private permissions, nonce freshness, failure preservation, durable clearing and 10,000-folder round trips. The generated 10,000-folder case completed in approximately 0.20 seconds on the test Mac; this is a fixture spot check, not a performance guarantee.
+- An isolated sandboxed app verified real Keychain storage and readback following a changed ad-hoc signature; macOS required the user's approval after that simulated update. This approval may be needed for future unsigned/ad-hoc updates; the app does not weaken Keychain access controls to avoid it.
+- Live checks verified the revised folder picker, cancellation, approved-folder arrow navigation, encrypted recent-file reopening, Clear History's default Cancel and explicit clearing, preservation of active rotations, and the selected shortcuts. Full-screen transition guards prevent commands from presenting sheets during window transitions.
+- This update is local only. Nothing has been committed, pushed or released to GitHub. The PRD remains the explicitly labelled version 1.7 public baseline.
+
+- Installed version 1.8 build 24 in Applications; the installed executable matches the release build and passes strict signature verification. The pre-upgrade preferences were already empty at installation (zero recent files and zero folder approvals). First launch created encrypted storage with 0600 file/0700 directory permissions and removed both legacy preference keys; non-empty migration was verified in the isolated automated fixture.
+
+- A subsequent full-screen exit check exposed AppKit rejecting a restoration frame after `aspectRatio = .zero`. Replaced that reset with `resizeIncrements = NSSize(width: 1, height: 1)`, the documented way to cancel an aspect constraint, and kept transition guards. Reference: https://developer.apple.com/documentation/appkit/nswindow/aspectratio.
+
+- The final corrected build completed live full-screen entry/exit, restored enabled menus and displayed the complete non-scrolling About panel. The user approved Keychain access for the final changed signature. App/source archives were refreshed locally; the public version 1.7 archive and Git commit remain unchanged.
+
+## Version 1.8.1 local update - October 13, 2026
+
+- Added Shortcuts directly below About and above Quit in the app menu. The nonresizable reference modal pairs related commands where useful and lists all implemented reader commands, page-up/down alternatives, copy/select-all and dialog keys. It uses the same 13-point Avenir typography and contains no scroll view. Folder-navigation and PDF copying limitations are noted.
+- Removed the Instructions section from About while retaining its icon, credits, dividers, memorial text and photo. About remains nonresizable without scrolling.
+- Release build and signature verification passed. A live isolated preview of the actual dialog component and reference data confirmed complete, aligned text and a visible Done button with no scrollbar, including in a 960-by-600-point host window. No keyboard command, history, PDF rendering or save behavior was changed; the native PDF suites were not repeated for this presentation-only update.
+- Changes and refreshed app/source archives remain local; GitHub publication is still on hold.
+
+- Installed version 1.8.1 build 25 matches the final build and is the only registered production copy. After the user approved its changed Keychain signature, live checks confirmed the exact About → Shortcuts → Quit order, the complete shortcuts list without a scroll area, Escape dismissal, the shortened About contents and Return dismissal. The wording review contains 171 entries across 19 groups.
+
+## Public release 1.8.1
+
+- Publication includes the tested 1.8 history/security/shortcut changes and the 1.8.1 Shortcuts/About presentation update. The release archive uses the same signed app bytes installed and visually checked locally; documentation-only publication changes do not rebuild or re-sign the app.
+- Existing DocumentSupport and ReaderView suites and the new EncryptedLibrary suite passed during implementation. Final live checks covered Keychain approval, Clear History/Cancel, folder-access flow, selected shortcuts, corrected full-screen restoration, the complete Shortcuts modal and revised About contents.
+- Updated the PRD, wording inventory, download links and Keychain prompt explanation for the current public version. Exclude local test apps, logs, Keychain contents, history, private documents and machine paths from source and downloads. The author uses the established GitHub no-reply email.

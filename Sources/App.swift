@@ -13,6 +13,7 @@ enum AppStyle {
 
 final class ViewerWindow: NSWindow {
     var onArrow: ((UInt16) -> Void)?
+    var onReaderShortcut: ((ReaderShortcut) -> Void)?
     override func keyDown(with event: NSEvent) {
         if event.modifierFlags.intersection([.command, .option, .control]).isEmpty,
            [123, 124, 125, 126].contains(event.keyCode), attachedSheet == nil {
@@ -21,6 +22,10 @@ final class ViewerWindow: NSWindow {
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers?.lowercased() == "p" { return true }
+        if attachedSheet == nil, let command = ReaderShortcut.command(for: event), let onReaderShortcut {
+            onReaderShortcut(command)
+            return true
+        }
         return super.performKeyEquivalent(with: event)
     }
 }
@@ -62,7 +67,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private let messageField = NSTextField(labelWithString: "Open a PDF to begin")
     private let activity = NSProgressIndicator()
     private var recentMenu = NSMenu(title: "Open Recent")
-    private let history = RecentFilesStore()
+    private lazy var history = RecentFilesStore(entries: []) { [weak self] entries in
+        self?.library.recentFiles = entries
+        self?.persistLibrary()
+    }
+    private var library = LibraryContents()
+    private let libraryDisk = EncryptedLibraryDisk(url: EncryptedLibraryDisk.defaultURL)
+    private var storageAvailable = false
+    private var persistenceTask: Task<Void, Never>?
+    private var storageErrorPending: Error?
+    private var storageWarningShown = false
+    private var folderAccessGeneration = 0
     private var source: LoadedPDF?
     private var rotations: [Int: Int] = [:]
     private var savedRotations: [Int: Int] = [:]
@@ -78,10 +93,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var isClosing = false
     private var instanceLock: Int32 = -1
     private var duplicate = false
-    private var folderBookmarks: [String: Data] {
-        get { UserDefaults.standard.dictionary(forKey: "readOnlyFolders") as? [String: Data] ?? [:] }
-        set { UserDefaults.standard.set(newValue, forKey: "readOnlyFolders") }
-    }
 
     static func main() {
         let app = NSApplication.shared
@@ -110,7 +121,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         buildMenu()
         buildWindow()
         reveal()
-        if let url = pendingURL { pendingURL = nil; requestOpen(url, resetZoom: true) }
+        setBusy(true)
+        Task {
+            await prepareLibrary()
+            setBusy(false)
+            if let url = pendingURL { pendingURL = nil; queuedOpen = (url, true, nil, true) }
+            drainQueuedOpen()
+        }
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
@@ -131,10 +148,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !duplicate else { return .terminateNow }
         if isBusy || transitionInFlight || window?.attachedSheet != nil { NSSound.beep(); return .terminateCancel }
-        guard isDirty else { return .terminateNow }
+        guard isDirty || persistenceTask != nil else { return .terminateNow }
         transitionInFlight = true
         Task {
             let confirmed = await confirmClosingWithRotations()
+            if confirmed { await persistenceTask?.value }
             transitionInFlight = false
             NSApp.reply(toApplicationShouldTerminate: confirmed)
             if !confirmed { queuedOpen = nil }
@@ -153,7 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
 
     private var isDirty: Bool { !rotations.isEmpty && rotations != savedRotations }
-    private var canStartAction: Bool { !isBusy && !transitionInFlight && window?.attachedSheet == nil }
+    private var canStartAction: Bool { !isBusy && !transitionInFlight && !fullScreenTransition && window?.attachedSheet == nil }
 
     private func buildWindow() {
         window = ViewerWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700),
@@ -180,6 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             default: break
             }
         }
+        window.onReaderShortcut = { [weak self] command in self?.performReaderShortcut(command) }
         window.standardWindowButton(.zoomButton)?.isHidden = true
         window.standardWindowButton(.zoomButton)?.isEnabled = false
         addWindowName()
@@ -311,7 +330,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         rotateButton.font = AppStyle.font()
         rotateButton.bezelStyle = .rounded
         rotateButton.image = rotateButton.image?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 11, weight: .regular))
-        rotateButton.toolTip = "Rotate the current page 90° clockwise"
+        rotateButton.toolTip = "Rotate the current page 90° clockwise (⌘R)"
         rotateMenuButton.target = self
         rotateMenuButton.action = #selector(showRotateMenu)
         rotateMenuButton.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "Rotation options")
@@ -385,20 +404,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     func windowDidChangeScreen(_ notification: Notification) { sizeWindow() }
     func windowWillEnterFullScreen(_ notification: Notification) {
         fullScreenTransition = true
-        window.aspectRatio = .zero
+        // Cancel the fixed aspect using AppKit's supported reset. A zero ratio
+        // can produce an invalid restoration frame when leaving full screen.
+        window.resizeIncrements = NSSize(width: 1, height: 1)
     }
-    func windowDidEnterFullScreen(_ notification: Notification) { fullScreenTransition = false }
+    func windowDidEnterFullScreen(_ notification: Notification) { fullScreenTransition = false; drainQueuedOpen() }
     func windowWillExitFullScreen(_ notification: Notification) { fullScreenTransition = true }
     func windowDidExitFullScreen(_ notification: Notification) {
         fullScreenTransition = false
         window.aspectRatio = NSSize(width: 16, height: 10)
         window.standardWindowButton(.zoomButton)?.isHidden = true
+        drainQueuedOpen()
     }
     func windowDidFailToEnterFullScreen(_ window: NSWindow) {
         fullScreenTransition = false
         window.aspectRatio = NSSize(width: 16, height: 10)
+        drainQueuedOpen()
     }
-    func windowDidFailToExitFullScreen(_ window: NSWindow) { fullScreenTransition = false }
+    func windowDidFailToExitFullScreen(_ window: NSWindow) { fullScreenTransition = false; drainQueuedOpen() }
     private func reveal() { guard window != nil else { return }; window.deminiaturize(nil); window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); focusPDF() }
     private func focusPDF() { window?.makeFirstResponder(pdfView) }
 
@@ -413,31 +436,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             menu.font = AppStyle.font()
             item.submenu = menu; main.addItem(item); return menu
         }
-        func add(_ menu: NSMenu, _ title: String, _ selector: Selector) {
-            let item = NSMenuItem(title: title, action: selector, keyEquivalent: "")
-            item.keyEquivalentModifierMask = []
+        func add(_ menu: NSMenu, _ title: String, _ selector: Selector, key: String = "",
+                 modifiers: NSEvent.ModifierFlags = .command) {
+            let item = NSMenuItem(title: title, action: selector, keyEquivalent: key)
+            item.keyEquivalentModifierMask = key.isEmpty ? [] : modifiers
             item.target = self
             menu.addItem(item)
         }
         let app = submenu(AppStyle.name)
         add(app, "About \(AppStyle.name)", #selector(showAbout))
+        add(app, "Shortcuts", #selector(showShortcuts))
         app.addItem(.separator())
-        add(app, "Quit \(AppStyle.name)", #selector(quitApp))
+        add(app, "Quit \(AppStyle.name)", #selector(quitApp), key: "q")
         let file = submenu("File")
-        add(file, "Open PDF…", #selector(openPanel))
+        add(file, "Open PDF…", #selector(openPanel), key: "o")
         let recent = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: "")
         recent.submenu = recentMenu; file.addItem(recent)
         file.addItem(.separator())
-        add(file, "Save As…", #selector(saveAsAction))
+        add(file, "Save As…", #selector(saveAsAction), key: "s", modifiers: [.command, .shift])
         add(file, "Close PDF", #selector(closePDF))
         let view = submenu("View")
-        add(view, "Full Screen", #selector(toggleFullScreen(_:)))
+        add(view, "Full Screen", #selector(toggleFullScreen(_:)), key: "f", modifiers: [.command, .control])
         NSApp.mainMenu = main
         rebuildRecentMenu()
     }
 
     @objc private func quitApp() { NSApp.terminate(nil) }
-    @objc private func toggleFullScreen(_ sender: Any?) { window.toggleFullScreen(sender) }
+    @objc private func toggleFullScreen(_ sender: Any?) {
+        guard canStartAction else { return }
+        window.toggleFullScreen(sender)
+    }
 
     private func rebuildRecentMenu() {
         recentMenu.removeAllItems()
@@ -451,7 +479,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         if history.entries.isEmpty {
             let item = NSMenuItem(title: "No Recent PDFs", action: nil, keyEquivalent: "")
             item.isEnabled = false; recentMenu.addItem(item)
-        } else {
+        }
+        if !history.entries.isEmpty || !library.folders.isEmpty {
             recentMenu.addItem(.separator())
             let item = NSMenuItem(title: "Clear History", action: #selector(clearHistory), keyEquivalent: "")
             item.target = self; recentMenu.addItem(item)
@@ -470,7 +499,87 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         guard let id = item.representedObject as? UUID, let entry = history.entries.first(where: { $0.id == id }) else { return }
         requestOpen(history.resolve(entry), resetZoom: true, recentID: entry.id, askForFolder: false)
     }
-    @objc private func clearHistory() { history.clear(); folderBookmarks = [:]; rebuildRecentMenu() }
+    @objc private func clearHistory() {
+        guard canStartAction else { return }
+        transitionInFlight = true
+        Task {
+            defer { transitionInFlight = false; drainQueuedOpen() }
+            let alert = ReaderDialog()
+            alert.messageText = "Clear history and saved folder access?"
+            alert.informativeText = "This will remove all recently opened PDFs from history and forget all folder permissions saved by Jack’s PDF. You will need to approve folder access again to browse neighbouring PDFs.\n\nYour files will not be deleted or changed."
+            alert.addButton(withTitle: "Clear History and Folder Access")
+            alert.addButton(withTitle: "Cancel")
+            alert.defaultButtonIndex = 1
+            guard await alert.beginSheetModal(for: window) == .alertFirstButtonReturn else { return }
+            guard storageAvailable else {
+                presentError(LibraryStorageError.missingKey)
+                return
+            }
+            await persistenceTask?.value
+            do {
+                try await libraryDisk.save(LibraryContents())
+                library = LibraryContents()
+                storageErrorPending = nil
+                history.restore([])
+                folderAccessGeneration += 1
+                folderLease?.stopAccessingSecurityScopedResource(); folderLease = nil
+                catalog = []; catalogFolder = nil
+                rebuildRecentMenu(); updateCount(); updateControls()
+            } catch { presentError(error) }
+        }
+    }
+
+    private func performReaderShortcut(_ command: ReaderShortcut) {
+        guard canStartAction else { return }
+        if command == .closeWindow { window.performClose(nil); return }
+        guard source != nil else { return }
+        switch command {
+        case .zoomIn: zoom.increase()
+        case .zoomOut: zoom.decrease()
+        case .actualSize: pdfView.setManualZoom(percent: 100); focusPDF()
+        case .fit: pdfView.setFit(); focusPDF()
+        case .rotateCurrent: rotateCurrent()
+        case .rotateAll: rotateAll()
+        case .closeWindow: break
+        }
+    }
+
+    private func prepareLibrary() async {
+        do {
+            let legacy = FileManager.default.fileExists(atPath: EncryptedLibraryDisk.defaultURL.path)
+                ? LibraryContents() : try LibraryContents.legacy(defaults: .standard)
+            library = try await libraryDisk.load(migrating: legacy)
+            history.restore(library.recentFiles)
+            storageAvailable = true
+            // Only remove old plaintext data after encrypted storage has been verified.
+            UserDefaults.standard.removeObject(forKey: "recentPDFs")
+            UserDefaults.standard.removeObject(forKey: "readOnlyFolders")
+            rebuildRecentMenu()
+        } catch { storageErrorPending = error }
+    }
+
+    private func persistLibrary() {
+        guard storageAvailable else { return }
+        let snapshot = library
+        let previous = persistenceTask
+        persistenceTask = Task {
+            await previous?.value
+            do { try await libraryDisk.save(snapshot) }
+            catch {
+                if !storageWarningShown { storageErrorPending = error }
+            }
+            drainQueuedOpen()
+        }
+    }
+
+    private func showStorageWarning(_ error: Error) {
+        storageWarningShown = true
+        let alert = ReaderDialog()
+        alert.messageText = "Couldn’t save or unlock private history"
+        alert.informativeText = error.localizedDescription + "\n\nYou can continue reading PDFs, but recent history and folder approvals may not be saved. The app will not save this information unencrypted."
+        alert.addButton(withTitle: "OK")
+        alert.beginSheetModal(for: window) { [weak self] _ in self?.drainQueuedOpen() }
+    }
 
     @objc private func openPanel() {
         guard canStartAction else { return }
@@ -488,7 +597,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     private func requestOpen(_ url: URL, resetZoom: Bool, recentID: UUID? = nil, askForFolder: Bool = true) {
         guard url.isFileURL else { return }
-        if isBusy || transitionInFlight || window.attachedSheet != nil {
+        if isBusy || transitionInFlight || fullScreenTransition || window.attachedSheet != nil {
             queuedOpen = (url, resetZoom, recentID, askForFolder)
             return
         }
@@ -502,7 +611,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
 
     private func drainQueuedOpen() {
-        guard !isBusy, !transitionInFlight, window.attachedSheet == nil, let next = queuedOpen else { return }
+        if canStartAction, let error = storageErrorPending {
+            storageErrorPending = nil; showStorageWarning(error); return
+        }
+        guard !isBusy, !transitionInFlight, !fullScreenTransition, window.attachedSheet == nil, let next = queuedOpen else { return }
         queuedOpen = nil
         requestOpen(next.url, resetZoom: next.resetZoom, recentID: next.recentID, askForFolder: next.askForFolder)
     }
@@ -606,7 +718,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
 
     private func prepareFolder(_ folder: URL, ask: Bool) async {
         let key = folder.standardizedFileURL.path
-        if let bookmark = folderBookmarks[key] {
+        if let bookmark = library.folders[key]?.bookmark {
             var stale = false
             if let url = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI], relativeTo: nil, bookmarkDataIsStale: &stale),
                url.resolvingSymlinksInPath().standardizedFileURL == folder.resolvingSymlinksInPath().standardizedFileURL,
@@ -614,15 +726,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 folderLease?.stopAccessingSecurityScopedResource()
                 folderLease = url
                 if stale { rememberFolder(url) }
+                else { library.rememberFolder(url, bookmark: bookmark); persistLibrary() }
                 await refreshCatalog(folder)
                 return
             }
         }
         guard ask else { updateCount(); return }
         let panel = NSOpenPanel()
-        panel.title = "Browse PDFs in This Folder"
-        panel.message = "Select “\(folder.lastPathComponent)” to count its PDFs and use the left and right arrow keys. Only this folder is needed."
-        panel.prompt = "Use This Folder"
+        panel.title = "Enable Navigation Between PDFs"
+        panel.message = "File: \(source?.sourceURL.lastPathComponent ?? "PDF")\nFolder: \(folder.path)\n\nSelect this folder to let Jack’s PDF read it, show its PDF count, and open neighbouring PDFs with the Left and Right arrow keys.\n\nChoose Cancel to read only this PDF. Folder navigation and the folder’s PDF count will remain unavailable."
+        panel.prompt = "Allow Folder Access"
         panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.allowsMultipleSelection = false; panel.canCreateDirectories = false
         panel.directoryURL = folder
@@ -638,20 +751,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     }
     private func rememberFolder(_ url: URL) {
         if let data = try? url.bookmarkData(options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess], includingResourceValuesForKeys: nil, relativeTo: nil) {
-            var saved = folderBookmarks
-            if saved.count >= 10, saved[url.path] == nil, let first = saved.keys.sorted().first { saved.removeValue(forKey: first) }
-            saved[url.standardizedFileURL.path] = data
-            folderBookmarks = saved
+            library.rememberFolder(url, bookmark: data)
+            persistLibrary()
+            rebuildRecentMenu()
         }
     }
     private func refreshCatalog(_ folder: URL) async {
         guard folderLease != nil else { return }
+        let generation = folderAccessGeneration
         do {
             let files = try await FolderCatalog.scan(url: folder)
-            guard source?.sourceURL.deletingLastPathComponent().standardizedFileURL == folder.standardizedFileURL else { return }
+            guard folderLease != nil, generation == folderAccessGeneration, source?.sourceURL.deletingLastPathComponent().standardizedFileURL == folder.standardizedFileURL else { return }
             catalog = files; catalogFolder = folder; updateCount()
         } catch {
-            guard source?.sourceURL.deletingLastPathComponent().standardizedFileURL == folder.standardizedFileURL else { return }
+            guard folderLease != nil, generation == folderAccessGeneration,
+                  source?.sourceURL.deletingLastPathComponent().standardizedFileURL == folder.standardizedFileURL else { return }
             catalog = []; catalogFolder = nil; updateCount()
         }
     }
@@ -689,8 +803,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         countButton.superview?.superview?.needsLayout = true
     }
     private func navigate(_ offset: Int) {
-        guard !isBusy, window.attachedSheet == nil, let url = source?.sourceURL else { return }
-        guard let index = catalog.firstIndex(where: { $0.standardizedFileURL == url.standardizedFileURL }) else { allowFolder(); return }
+        guard canStartAction, let url = source?.sourceURL else { return }
+        guard let index = catalog.firstIndex(where: { $0.standardizedFileURL == url.standardizedFileURL }) else { NSSound.beep(); return }
         let next = index + offset
         guard catalog.indices.contains(next) else { return }
         requestOpen(catalog[next], resetZoom: false)
@@ -714,12 +828,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     @objc private func showRotateMenu() {
         guard let source else { return }
         let menu = NSMenu()
-        let current = NSMenuItem(title: "Rotate current page    ·    Page \(pdfView.currentPageIndex + 1) only", action: #selector(rotateCurrent), keyEquivalent: "")
+        let current = NSMenuItem(title: "Rotate current page    ·    Page \(pdfView.currentPageIndex + 1) only", action: #selector(rotateCurrent), keyEquivalent: "r")
         current.target = self
         current.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: nil)
+        current.keyEquivalentModifierMask = .command
         menu.addItem(current)
-        let all = NSMenuItem(title: "Rotate all pages    ·    All \(source.document.pageCount) pages", action: #selector(rotateAll), keyEquivalent: "")
-        all.target = self; all.image = current.image; menu.addItem(all)
+        let all = NSMenuItem(title: "Rotate all pages    ·    All \(source.document.pageCount) pages", action: #selector(rotateAll), keyEquivalent: "r")
+        all.target = self; all.image = current.image
+        all.keyEquivalentModifierMask = [.command, .option]
+        menu.addItem(all)
         menu.font = AppStyle.font()
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: rotateMenuButton.bounds.minY - 5), in: rotateMenuButton)
     }
@@ -785,6 +902,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         pdfView.document = nil
         source = nil; rotations = [:]; savedRotations = [:]
         sourceLease?.stopAccessingSecurityScopedResource(); sourceLease = nil
+        folderAccessGeneration += 1
         folderLease?.stopAccessingSecurityScopedResource(); folderLease = nil
         catalog = []; catalogFolder = nil
         nameField.stringValue = ""; pathField.stringValue = ""; sizeField.stringValue = ""; pageField.stringValue = ""; countButton.title = ""
@@ -821,6 +939,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         alert.addButton(withTitle: "OK")
         alert.beginSheetModal(for: window) { [weak self] _ in self?.drainQueuedOpen() }
     }
+    @objc private func showShortcuts() {
+        guard canStartAction else { return }
+        let alert = ReaderDialog()
+        alert.fitsContentWithoutScrolling = true
+        alert.messageText = "Shortcuts"
+        alert.referenceRows = ShortcutReference.rows
+        alert.sectionDelimiter = "• • •"
+        alert.closingText = ShortcutReference.notes
+        alert.addButton(withTitle: "Done")
+        alert.beginSheetModal(for: window) { [weak self] _ in self?.drainQueuedOpen() }
+    }
+
     @objc private func showAbout() {
         let alert = ReaderDialog()
         alert.fitsContentWithoutScrolling = true
@@ -829,7 +959,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
         alert.leadingDelimiter = "• • •"
         alert.messageText = AppStyle.name
-        alert.informativeText = "• • •\n\nA private, minimal PDF viewer for Mac.\n\n• • •\n\nInstructions\nClick a page to make it active\n↑ / ↓ Scroll up / down\n← / → Previous / next PDF in this folder\n\n• • •\n\nCreated by Nikhil Sharma\nMade with OpenAI ChatGPT models.\nLast updated: October 12, 2026\nVersion 1.7"
+        alert.informativeText = "• • •\n\nA private, minimal PDF viewer for Mac.\n\n• • •\n\nCreated by Nikhil Sharma\nMade with OpenAI ChatGPT models.\nLast updated: October 13, 2026\nVersion 1.8.1"
         alert.sectionDelimiter = "• • •"
         alert.closingText = "In loving memory of Jack, our sweetest companion and forever friend.\nYou are still in our hearts and our lives every day."
         alert.textAlignment = .center

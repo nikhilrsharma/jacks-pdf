@@ -312,7 +312,8 @@ struct RecentFileEntry: Codable, Identifiable {
 
 @MainActor final class RecentFilesStore {
     private(set) var entries: [RecentFileEntry]
-    private let defaults: UserDefaults
+    private let defaults: UserDefaults?
+    private var onChange: (([RecentFileEntry]) -> Void)?
     private let key: String
 
     private let makeBookmark: (URL) throws -> Data
@@ -332,6 +333,15 @@ struct RecentFileEntry: Codable, Identifiable {
 
     /// Record only after a successful open. Remembering a file does not depend
     /// on macOS being able to grant persistent permission for it.
+    init(entries: [RecentFileEntry], onChange: @escaping ([RecentFileEntry]) -> Void) {
+        defaults = nil; key = ""; self.onChange = onChange
+        self.entries = Array(entries.prefix(10))
+        makeBookmark = { try $0.bookmarkData(options: [.withSecurityScope, .securityScopeAllowOnlyReadAccess],
+                                             includingResourceValuesForKeys: nil, relativeTo: nil) }
+    }
+
+    func restore(_ entries: [RecentFileEntry]) { self.entries = Array(entries.prefix(10)) }
+
     func record(url: URL, replacing id: UUID? = nil) {
         guard url.isFileURL else { return }
         let normalized = url.standardizedFileURL
@@ -360,12 +370,14 @@ struct RecentFileEntry: Codable, Identifiable {
 
     func clear() {
         entries.removeAll()
-        defaults.removeObject(forKey: key)
+        defaults?.removeObject(forKey: key)
+        onChange?(entries)
     }
 
     private func persist() {
         guard let data = try? JSONEncoder().encode(entries) else { return }
-        defaults.set(data, forKey: key)
+        defaults?.set(data, forKey: key)
+        onChange?(entries)
     }
 }
 

@@ -6,6 +6,7 @@ import AppKit
 final class ReaderDialog: NSObject {
     var messageText = ""
     var informativeText = ""
+    var referenceRows: [(String, String)] = []
     var headingIcon: NSImage?
     var leadingDelimiter: String?
     var sectionDelimiter: String?
@@ -14,6 +15,7 @@ final class ReaderDialog: NSObject {
     var textAlignment: NSTextAlignment = .left
     var photograph: NSImage?
     var fitsContentWithoutScrolling = false
+    var defaultButtonIndex = 0
     let window: NSPanel
 
     private var titles: [String] = []
@@ -35,7 +37,7 @@ final class ReaderDialog: NSObject {
         window = panel
         super.init()
         panel.onCancel = { [weak self] in self?.cancel() }
-        panel.onAccept = { [weak self] in self?.finish(.alertFirstButtonReturn) }
+        panel.onAccept = { [weak self] in if let self { self.finish(NSApplication.ModalResponse(rawValue: 1000 + self.defaultButtonIndex)) } }
     }
 
     func addButton(withTitle title: String) { titles.append(title) }
@@ -128,6 +130,34 @@ final class ReaderDialog: NSObject {
             let label = textLabel(text)
             append(label, width: textWidth, height: textHeight(text, width: textWidth))
         }
+        if !referenceRows.isEmpty {
+            let gap: CGFloat = 16
+            let actionWidth = (textWidth - gap) * 0.54
+            let keysWidth = textWidth - gap - actionWidth
+            let rows = NSStackView()
+            rows.orientation = .vertical
+            rows.spacing = 1
+            rows.alignment = .leading
+            var totalHeight: CGFloat = 0
+            for (action, keys) in referenceRows {
+                let actionLabel = textLabel(action)
+                let keysLabel = textLabel(keys)
+                keysLabel.alignment = .right
+                let row = NSStackView(views: [actionLabel, keysLabel])
+                row.spacing = gap
+                row.alignment = .firstBaseline
+                let height = max(textHeight(action, width: actionWidth), textHeight(keys, width: keysWidth))
+                NSLayoutConstraint.activate([
+                    actionLabel.widthAnchor.constraint(equalToConstant: actionWidth),
+                    keysLabel.widthAnchor.constraint(equalToConstant: keysWidth),
+                    row.heightAnchor.constraint(equalToConstant: height)
+                ])
+                rows.addArrangedSubview(row)
+                totalHeight += height
+            }
+            totalHeight += CGFloat(referenceRows.count - 1) * rows.spacing
+            append(rows, width: textWidth, height: totalHeight)
+        }
         if let sectionDelimiter, !sectionDelimiter.isEmpty {
             let label = textLabel(sectionDelimiter)
             append(label, width: textWidth, height: textHeight(sectionDelimiter, width: textWidth))
@@ -219,7 +249,7 @@ final class ReaderDialog: NSObject {
             button.controlSize = .small
             button.font = AppStyle.font()
             button.tag = 1000 + index
-            if index == 0 { button.keyEquivalent = "\r"; primaryButton = button }
+            if index == defaultButtonIndex { button.keyEquivalent = "\r"; primaryButton = button }
             let labelWidth = (title as NSString).size(withAttributes: [.font: AppStyle.font()]).width
             button.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([

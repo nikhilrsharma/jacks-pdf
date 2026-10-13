@@ -4,11 +4,11 @@
 
 A private, minimalist PDF reader for macOS, created by Nikhil Sharma with OpenAI ChatGPT models.
 
-Version 1.7 · Last updated October 12, 2026 · macOS 14 or later
+Version 1.8.1 · Last updated October 13, 2026 · macOS 14 or later
 
 ## Download and documentation
 
-[Download version 1.7](https://github.com/nikhilrsharma/jacks-pdf/releases/tag/v1.7) for Apple silicon, or build from source below. The app requires macOS 14 or later. Extract the ZIP and place **Jack’s PDF.app** in Applications, replacing an older copy if present.
+[Download version 1.8.1](https://github.com/nikhilrsharma/jacks-pdf/releases/tag/v1.8.1) for Apple silicon, or build from source below. The app requires macOS 14 or later. Extract the ZIP and place **Jack’s PDF.app** in Applications, replacing an older copy if present.
 
 The downloadable app is ad-hoc signed, **not notarized by Apple**. macOS may block a downloaded copy; follow [Apple’s guidance for apps from outside the App Store](https://support.apple.com/102445) only if you trust this release, or build it locally. Do not disable Gatekeeper globally. An Intel release has not been validated.
 
@@ -26,15 +26,36 @@ Open the app and choose **Open PDF…**, or use Finder's **Open With → Jack's 
 - **Click a page** to make it active without moving the document or changing the zoom. A thin accent-coloured outline identifies it; the page counter, Rotate and Fit use that page. Scrolling the document resumes normal page tracking. Clicking empty canvas leaves the chosen page active.
 - **Up / Down** scroll through the document. **Left / Right** open the previous or next PDF in the same folder. Navigation stops at either end.
 - The header groups right-aligned file size and folder position immediately before the page counter, with bold bullet separators before the size and between each field. The metadata fits the widest PDF index in the current folder, keeping its right edges fixed during navigation without reserving unused space for larger folders. The filename uses the available width up to the first metadata bullet. The containing folder path below omits the filename and has its own wider viewport up to the Rotate control; both keep a 12-point gap before their neighbouring element. Long filename and path rows can be scrolled horizontally; hover also reveals their full text.
-- Folder navigation needs access to that folder. The app asks through the standard macOS folder picker and remembers the permission locally. It counts visible, readable, regular `.pdf` files in that folder only, in natural filename order (`2.pdf` before `10.pdf`). Hidden files, symbolic links, packages and subfolders are excluded.
+- Folder navigation needs access to that folder. The app asks through the standard macOS folder picker, showing the filename, full folder path, and an explanation of optional navigation access. Cancel keeps the selected PDF readable without folder navigation. Use Browse folder to approve access later; arrow keys do not repeatedly ask after a decline. Up to 10,000 read-only folder approvals are remembered, with least-recently-used replacement at the limit. It counts visible, readable, regular `.pdf` files in that folder only, in natural filename order (`2.pdf` before `10.pdf`). Hidden files, symbolic links, packages and subfolders are excluded.
 - **Fit** uses a plain centred label, with a blue background when active. It adjusts the zoom to the current page's width. Zoom changes never reflow text. Explicitly opening a file starts in Fit mode; navigating between files keeps the chosen zoom mode. Fit remains stable while scrolling and adjusts when the window or fitted page is rotated.
 - Manual zoom runs from **20% to 200% in 5% steps**, with a percentage label that follows the slider. Fit can use a scale outside the manual range when the page dimensions require it.
 - The header rearranges into two rows in narrower windows, keeping all labels at 13 points. Long filenames scroll within their allotted space.
 - Outside full screen, the window uses a fixed **16:10** aspect ratio and fits within the screen with space around it. The title bar displays a small app icon followed by “Jack’s PDF” beside the close and minimize buttons in 13-point Avenir. The green window button is hidden. **View → Full Screen** enters native full screen; **Exit Full Screen** returns to the normal window. View contains no other commands, and there is no Window menu.
-- Menu commands are selected by mouse and have no keyboard shortcuts. There is no Hide menu item. Reading arrows and standard dialog Return/Escape behavior remain available.
-- **File → Open Recent** keeps the last ten successfully opened PDFs locally, newest first without duplicates, even if persistent permission could not be saved. Valid saved access reopens directly. If a file is unavailable or access is lost, choose **Locate File…**, **Remove from History**, or **Cancel**. Locating and successfully opening a file updates its existing entry; cancellation or a failed open preserves both history and the current PDF. **Clear History** removes all recent-file references and saved folder permissions. Reopening a recent PDF does not require selecting its folder; use **Browse folder…** when neighbouring-file navigation is needed.
+- **Jack’s PDF → Shortcuts**, between About and Quit, lists every supported reader and dialog shortcut in a compact, nonresizable modal with no scrollbar. Command-O opens, Shift-Command-S saves a copy, Command-W closes the window, Command-Q quits, Control-Command-F toggles full screen, Command-Plus/Minus zoom, Command-0 selects 100%, Command-9 fits width, Command-R rotates the current page and Option-Command-R rotates all pages. Command-Equal also zooms in. Existing reading, copy, select-all and dialog keys remain; no Find or Save shortcut is added. There is no Hide menu item. Reading arrows and standard dialog Return/Escape behavior remain available.
+- **File → Open Recent** keeps the last ten successfully opened PDFs locally, newest first without duplicates, even if persistent permission could not be saved. Valid saved access reopens directly. If a file is unavailable or access is lost, choose **Locate File…**, **Remove from History**, or **Cancel**. Locating and successfully opening a file updates its existing entry; cancellation or a failed open preserves both history and the current PDF. **Clear History** first asks for explicit confirmation, explaining that saved folder access is also removed. Cancel is the default. Confirming clears all saved references and folder approvals and ends active folder navigation; it does not change any PDF or its current rotations. Reopening a recent PDF does not require selecting its folder; use **Browse folder…** when neighbouring-file navigation is needed.
 
 The app offers no printing, sharing, cloud-upload, document-properties, annotation-editing or form-filling commands. Text can be selected and copied when the PDF permits copying. Embedded PDF actions and links are not activated.
+
+## Encrypted local history
+
+Recent-file names, paths and permission bookmarks are stored in an AES-256-GCM encrypted file in the app container’s Application Support folder. The random encryption key is held in the local macOS login Keychain with access restricted to the creating app. The app does not request Keychain cloud syncing. Old preferences are removed only after encrypted migration is verified. A missing key or damaged store is preserved and reported, with no plaintext persistence fallback.
+
+Ad-hoc signed updates may require macOS Keychain approval because the app’s code identity changes. Approve the system prompt only for an update you trust. The app retains ten recent PDFs and up to 10,000 folder approvals; it activates folder access only while needed. These records have no time-based expiry. Clearing is normal logical deletion, not a guarantee of secure erasure from disk or old backups. Encryption does not hide the open app’s UI or protect against an attacker controlling the unlocked app/process.
+
+### When macOS may ask for Keychain approval
+
+At startup, Jack’s PDF reads only its own history-encryption key from the local login Keychain. It holds that key in memory for the session; opening PDFs, approving folders, rotating pages and clearing history do not perform another Keychain read. Clearing history retains the encryption key.
+
+macOS may show an approval or unlock prompt when:
+
+- An update or rebuild changes the app’s ad-hoc signature. Permission granted to an earlier build may not carry over, even after Always Allow.
+- You previously chose Allow Once rather than Always Allow. The next app launch may ask again.
+- The login Keychain is locked, including when it did not unlock at login, or its password differs from your Mac login password.
+- The item’s access controls changed or macOS requires renewed trust after a system update.
+
+A fresh installation normally creates its own key without an access-approval prompt when the login Keychain is unlocked. The app does not request your Apple ID password or access to unrelated passwords. If access is denied, reading remains available, but saved history and folder approvals cannot be loaded or reliably retained; existing encrypted data is preserved. Restart after approving access. If the key is missing while encrypted history exists, the app reports that error rather than silently replacing it.
+
+Apple explains [one-time versus ongoing permission](https://support.apple.com/guide/keychain-access/if-youre-asked-for-access-to-your-keychain-kyca1243/mac), [renewed approval for changed apps](https://support.apple.com/guide/keychain-access/if-a-trusted-app-asks-for-keychain-access-kyca1331/mac), and [locked login Keychains](https://support.apple.com/guide/keychain-access/mac-keychain-password-kyca1242/mac).
 
 ## Default PDF app
 
@@ -50,7 +71,7 @@ Rotation uses native PDF page orientation rather than rasterizing the document. 
 
 Password-protected PDFs can be opened with their password. Rotated export of encrypted PDFs is currently unavailable because the app does not silently remove or weaken their protection. Passwords are not written to history.
 
-The nonresizable About dialog shows its complete contents without scrolling, using compact vertical spacing and the same 13-point text. It starts with the centred app icon and a text divider, followed by the app name and description, terse arrow-key instructions, creator and model credits, update date and version. Text dividers separate the title, description, instructions, credits and tribute, followed by the unchanged photograph of Jack in a small, centred rounded frame. The tribute reads: “In loving memory of Jack, our sweetest companion and forever friend. You are still in our hearts and our lives every day.”
+The nonresizable About dialog shows its complete contents without scrolling, using compact vertical spacing and the same 13-point text. It starts with the centred app icon and a text divider, followed by the app name and description, creator and model credits, update date and version. Text dividers separate the title, description, credits and tribute, followed by the unchanged photograph of Jack in a small, centred rounded frame. The tribute reads: “In loving memory of Jack, our sweetest companion and forever friend. You are still in our hearts and our lives every day.”
 
 ## Build locally
 
@@ -78,7 +99,9 @@ The build output is local and is not notarized for public binary distribution. N
 ./test.sh
 ```
 
-This compiles and runs two independent executables in `build/tests` (or `$BUILD_DIR/tests`). `DocumentSupportTests` checks source protection, exports, vector/text/forms, scanned-image preservation, invalid destinations, password handling, history, natural folder order and snapshot cleanup. `ReaderViewTests` checks native layout, fit and manual zoom, rotation, scrolling, read-only forms/accessibility, and blocked print/action/context-menu paths. The reader checks need a normal macOS graphical login session, and briefly show a generated-document window for animation checks.
+This compiles and runs three independent executables in `build/tests` (or `$BUILD_DIR/tests`). `DocumentSupportTests` checks source protection, exports, vector/text/forms, scanned-image preservation, invalid destinations, password handling, history, natural folder order and snapshot cleanup. `ReaderViewTests` checks native layout, fit and manual zoom, rotation, scrolling, read-only forms/accessibility, and blocked print/action/context-menu paths. The reader checks need a normal macOS graphical login session, and briefly show a generated-document window for animation checks.
+
+`EncryptedLibraryTests` checks migration, authenticated encryption, tampering/wrong-key failures, private file modes, fresh nonces, 10,000-folder capacity, least-recently-used eviction, durable clearing and shortcut mapping. It injects an ephemeral key and never uses the user’s Keychain.
 
 Tests create their own PDF fixtures. They do not use personal documents. They are functional checks, not a performance benchmark or a substitute for trying representative PDFs in the signed app.
 
