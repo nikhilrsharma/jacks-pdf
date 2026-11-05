@@ -283,23 +283,95 @@ enum RotationExport {
     }
 }
 
+enum PDFSortOrder: String, CaseIterable {
+    case filename, creationDate
+
+    var title: String {
+        switch self {
+        case .filename: return "Filename (A–Z)"
+        case .creationDate: return "Creation date & time (newest first)"
+        }
+    }
+
+    var navigationHint: String {
+        switch self {
+        case .filename: return "Left: previous filename. Right: next filename."
+        case .creationDate: return "Left: newer PDF. Right: older PDF. Matching timestamps use filename order; unavailable timestamps appear last."
+        }
+    }
+
+    static func load(defaults: UserDefaults = .standard) -> PDFSortOrder {
+        defaults.string(forKey: "pdfSortOrder").flatMap(Self.init(rawValue:)) ?? .filename
+    }
+
+    func save(defaults: UserDefaults = .standard) {
+        // This preference contains no filenames, paths, timestamps or permissions.
+        defaults.set(rawValue, forKey: "pdfSortOrder")
+    }
+}
+
+struct FolderPDF: Sendable {
+    let url: URL
+    let creationDate: Date?
+    let identity: FileIdentity?
+}
+
 enum FolderCatalog {
     /// Immediate readable PDF files, including .PDF; no recursive traversal, packages, or symbolic links.
-    static func scan(url: URL) async throws -> [URL] {
+    static func scanEntries(url: URL) async throws -> [FolderPDF] {
         try await backgroundWork {
             let keys: Set<URLResourceKey> = [.isRegularFileKey, .isSymbolicLinkKey, .isPackageKey, .isReadableKey]
             let files = try FileManager.default.contentsOfDirectory(at: url, includingPropertiesForKeys: Array(keys),
                                         options: [.skipsHiddenFiles, .skipsPackageDescendants])
-            return files.filter { candidate in
+            return files.compactMap { candidate in
                 guard candidate.pathExtension.lowercased() == "pdf",
-                      let values = try? candidate.resourceValues(forKeys: keys) else { return false }
-                return values.isRegularFile == true && values.isSymbolicLink != true && values.isPackage != true
-                    && values.isReadable != false
-            }.sorted { lhs, rhs in
-                let order = lhs.lastPathComponent.localizedStandardCompare(rhs.lastPathComponent)
-                return order == .orderedSame ? lhs.path < rhs.path : order == .orderedAscending
+                      let values = try? candidate.resourceValues(forKeys: keys),
+                      values.isRegularFile == true, values.isSymbolicLink != true,
+                      values.isPackage != true, values.isReadable != false else { return nil }
+                // Read the original file's full filesystem timestamp, never the snapshot's
+                // timestamp or PDF authoring metadata. Optional metadata failure cannot
+                // hide an otherwise readable PDF from the folder count.
+                let created = try? candidate.resourceValues(forKeys: [.creationDateKey]).creationDate
+                return FolderPDF(url: candidate.standardizedFileURL, creationDate: created,
+                                 identity: try? FileIdentity.capture(url: candidate))
             }
         }
+    }
+
+    static func scan(url: URL, order: PDFSortOrder = .filename) async throws -> [URL] {
+        ordered(try await scanEntries(url: url), by: order).map(\.url)
+    }
+
+    static func ordered(_ entries: [FolderPDF], by order: PDFSortOrder) -> [FolderPDF] {
+        entries.sorted { lhs, rhs in
+            if order == .creationDate {
+                let left = validDate(lhs.creationDate), right = validDate(rhs.creationDate)
+                switch (left, right) {
+                case let (left?, right?) where left != right: return left > right
+                case (_?, nil): return true
+                case (nil, _?): return false
+                default: break
+                }
+            }
+            let comparison = lhs.url.lastPathComponent.localizedStandardCompare(rhs.url.lastPathComponent)
+            return comparison == .orderedSame ? lhs.url.path < rhs.url.path : comparison == .orderedAscending
+        }
+    }
+
+    /// Keep a renamed open file selected without treating a replacement at its old
+    /// path as that document. Multiple hard links are deliberately not guessed at.
+    static func index(of url: URL, identity: FileIdentity, in entries: [FolderPDF]) -> Int? {
+        let path = url.standardizedFileURL
+        if let exact = entries.firstIndex(where: {
+            $0.url.standardizedFileURL == path && $0.identity?.isSameFile(as: identity) == true
+        }) { return exact }
+        let matches = entries.indices.filter { entries[$0].identity?.isSameFile(as: identity) == true }
+        return matches.count == 1 ? matches[0] : nil
+    }
+
+    private static func validDate(_ date: Date?) -> Date? {
+        guard let date, date.timeIntervalSinceReferenceDate.isFinite else { return nil }
+        return date
     }
 }
 

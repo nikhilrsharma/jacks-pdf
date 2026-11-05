@@ -35,3 +35,5 @@ The local build uses ad-hoc signing (`codesign --sign -`) and does not access an
 The public repository uses the MIT licence and contains reviewed source, synthetic test code, documentation and intended artwork. Private documents, history/bookmarks, build logs, credentials and signing material are excluded. The public memorial photo retains its decoded pixels but has camera/editing metadata removed. The build script performs no publication or upload.
 
 Security concerns can be investigated locally with a minimal synthetic PDF that reproduces the issue; do not include private documents or passwords in a public issue report.
+
+The PDF-order choice is a non-sensitive app preference stored separately from encrypted history. It contains only the selected mode, no file names, paths, timestamps or permissions. Clearing history does not reset this preference. Folder scanning uses original-file metadata and never writes creation or modification timestamps.

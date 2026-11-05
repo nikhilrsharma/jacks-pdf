@@ -82,7 +82,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private var rotations: [Int: Int] = [:]
     private var savedRotations: [Int: Int] = [:]
     private var catalog: [URL] = []
+    private var catalogEntries: [FolderPDF] = []
     private var catalogFolder: URL?
+    private var catalogError: Error?
+    private var catalogRefreshGeneration = 0
+    private var sortOrder = PDFSortOrder.load()
     private var folderLease: URL?
     private var sourceLease: URL?
     private var isBusy = false
@@ -166,8 +170,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         if instanceLock >= 0 { Darwin.close(instanceLock) }
     }
     func applicationDidBecomeActive(_ notification: Notification) {
-        guard window != nil, !isBusy, let folder = catalogFolder else { return }
-        Task { await refreshCatalog(folder) }
+        guard window != nil, canStartAction, let folder = catalogFolder else { return }
+        Task {
+            guard canStartAction else { return }
+            await refreshCatalog(folder)
+        }
     }
 
     private var isDirty: Bool { !rotations.isEmpty && rotations != savedRotations }
@@ -306,7 +313,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         countButton.alignment = .right
         countButton.contentTintColor = .secondaryLabelColor
         countButton.target = self
-        countButton.action = #selector(allowFolder)
+        countButton.action = #selector(showPDFOrder)
+        countButton.imagePosition = .imageTrailing
         countButton.cell?.lineBreakMode = .byTruncatingMiddle
         pageField.font = AppStyle.font()
         pageField.textColor = .secondaryLabelColor
@@ -523,7 +531,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
                 history.restore([])
                 folderAccessGeneration += 1
                 folderLease?.stopAccessingSecurityScopedResource(); folderLease = nil
-                catalog = []; catalogFolder = nil
+                catalog = []; catalogEntries = []; catalogError = nil; catalogFolder = nil
                 rebuildRecentMenu(); updateCount(); updateControls()
             } catch { presentError(error) }
         }
@@ -619,7 +627,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         requestOpen(next.url, resetZoom: next.resetZoom, recentID: next.recentID, askForFolder: next.askForFolder)
     }
 
-    private func load(_ url: URL, resetZoom: Bool, recentID: UUID? = nil, askForFolder: Bool = true) async {
+    private func load(_ url: URL, resetZoom: Bool, recentID: UUID? = nil, askForFolder: Bool = true,
+                      refreshFolder: Bool = true) async {
         guard !isBusy else { return }
         setBusy(true)
         let hasScope = url.startAccessingSecurityScopedResource()
@@ -668,10 +677,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         setBusy(false)
         let folder = url.deletingLastPathComponent()
         if catalogFolder?.standardizedFileURL != folder.standardizedFileURL {
-            catalog = []; catalogFolder = nil
+            catalog = []; catalogEntries = []; catalogError = nil; catalogFolder = nil
             folderLease?.stopAccessingSecurityScopedResource(); folderLease = nil
             await prepareFolder(folder, ask: askForFolder)
-        } else { await refreshCatalog(folder) }
+        } else if refreshFolder { await refreshCatalog(folder) }
+        else { updateCount() }
         updateControls(); focusPDF()
     }
 
@@ -716,9 +726,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         return response == .alertFirstButtonReturn ? field.stringValue : nil
     }
 
-    private func prepareFolder(_ folder: URL, ask: Bool) async {
+    private func prepareFolder(_ folder: URL, ask: Bool, useSavedAccess: Bool = true) async {
         let key = folder.standardizedFileURL.path
-        if let bookmark = library.folders[key]?.bookmark {
+        if useSavedAccess, let bookmark = library.folders[key]?.bookmark {
             var stale = false
             if let url = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI], relativeTo: nil, bookmarkDataIsStale: &stale),
                url.resolvingSymlinksInPath().standardizedFileURL == folder.resolvingSymlinksInPath().standardizedFileURL,
@@ -759,15 +769,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
     private func refreshCatalog(_ folder: URL) async {
         guard folderLease != nil else { return }
         let generation = folderAccessGeneration
+        catalogRefreshGeneration += 1
+        let refreshGeneration = catalogRefreshGeneration
         do {
-            let files = try await FolderCatalog.scan(url: folder)
-            guard folderLease != nil, generation == folderAccessGeneration, source?.sourceURL.deletingLastPathComponent().standardizedFileURL == folder.standardizedFileURL else { return }
-            catalog = files; catalogFolder = folder; updateCount()
+            let entries = try await FolderCatalog.scanEntries(url: folder)
+            guard folderLease != nil, generation == folderAccessGeneration,
+                  refreshGeneration == catalogRefreshGeneration,
+                  source?.sourceURL.deletingLastPathComponent().standardizedFileURL == folder.standardizedFileURL else { return }
+            catalogEntries = FolderCatalog.ordered(entries, by: sortOrder)
+            catalog = catalogEntries.map(\.url)
+            catalogError = nil; catalogFolder = folder; updateCount()
         } catch {
             guard folderLease != nil, generation == folderAccessGeneration,
+                  refreshGeneration == catalogRefreshGeneration,
                   source?.sourceURL.deletingLastPathComponent().standardizedFileURL == folder.standardizedFileURL else { return }
-            catalog = []; catalogFolder = nil; updateCount()
+            catalog = []; catalogEntries = []; catalogError = error
+            catalogFolder = folder; updateCount()
         }
+    }
+    @objc private func showPDFOrder() {
+        guard canStartAction else { return }
+        guard catalogFolder != nil else { allowFolder(); return }
+        let menu = NSMenu(title: "PDF order")
+        menu.font = AppStyle.font()
+        for order in PDFSortOrder.allCases {
+            let item = NSMenuItem(title: order.title, action: #selector(changePDFOrder(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = order.rawValue
+            item.state = order == sortOrder ? .on : .off
+            item.toolTip = order.navigationHint
+            menu.addItem(item)
+        }
+        if catalogError != nil {
+            menu.addItem(.separator())
+            let retry = NSMenuItem(title: "Allow Folder Access…", action: #selector(retryFolderAccess), keyEquivalent: "")
+            retry.target = self
+            menu.addItem(retry)
+        }
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: -4), in: countButton)
+        focusPDF()
+    }
+    @objc private func changePDFOrder(_ sender: NSMenuItem) {
+        guard canStartAction, let raw = sender.representedObject as? String,
+              let order = PDFSortOrder(rawValue: raw), order != sortOrder else { return }
+        sortOrder = order
+        order.save()
+        // Reorder only the folder list. PDFKit, the snapshot and unsaved rotations stay intact.
+        catalogEntries = FolderCatalog.ordered(catalogEntries, by: order)
+        catalog = catalogEntries.map(\.url)
+        updateCount()
+        focusPDF()
     }
     @objc private func allowFolder() {
         guard catalogFolder == nil, let folder = source?.sourceURL.deletingLastPathComponent(), canStartAction else { return }
@@ -777,37 +828,72 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
             await prepareFolder(folder, ask: true)
         }
     }
+    @objc private func retryFolderAccess() {
+        guard canStartAction, catalogError != nil, let folder = source?.sourceURL.deletingLastPathComponent() else { return }
+        transitionInFlight = true
+        folderAccessGeneration += 1
+        folderLease?.stopAccessingSecurityScopedResource(); folderLease = nil
+        catalog = []; catalogEntries = []; catalogError = nil; catalogFolder = nil
+        updateCount()
+        Task {
+            defer { transitionInFlight = false; drainQueuedOpen() }
+            await prepareFolder(folder, ask: true, useSavedAccess: false)
+        }
+    }
     private func updateCount() {
-        guard let url = source?.sourceURL else { countButton.title = ""; return }
-        if let index = catalog.firstIndex(where: { $0.standardizedFileURL == url.standardizedFileURL }) {
-            countButton.title = "PDF \(index + 1) of \(catalog.count)"
-            countButton.setAccessibilityLabel(nil)
-            countButton.toolTip = "\(countButton.title)\nPDFs in this folder, sorted by filename"
+        guard let source else { countButton.title = ""; countButton.image = nil; return }
+        if catalogFolder != nil {
+            let index = FolderCatalog.index(of: source.sourceURL, identity: source.identity, in: catalogEntries)
+            countButton.title = catalogError != nil ? "Folder unavailable" : "PDF \(index.map { String($0 + 1) } ?? "—") of \(catalog.count)"
+            countButton.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: nil)?
+                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 8, weight: .regular))
+            countButton.setAccessibilityLabel("\(countButton.title). PDF order: \(sortOrder.title)")
+            countButton.setAccessibilityHelp("Choose the order for Left and Right arrow navigation. \(sortOrder.navigationHint)")
+            var detail = "\(sortOrder.title)\n\(sortOrder.navigationHint)\nClick to change PDF order."
+            if catalogError != nil { detail += "\nThe folder is currently unavailable. Try again when it is accessible." }
+            else if index == nil { detail += "\nThe open PDF is no longer listed in this folder. Reopen it to resume folder navigation." }
+            countButton.toolTip = detail
         } else {
+            countButton.image = nil
             countButton.title = "Browse folder…"
             countButton.setAccessibilityLabel("Enable folder navigation")
+            countButton.setAccessibilityHelp("Allow access to this PDF's folder")
             countButton.toolTip = "Allow access to this PDF's folder"
         }
         updateFolderCounterWidth()
     }
     private func updateFolderCounterWidth() {
-        if !catalog.isEmpty, countButton.title.hasPrefix("PDF "),
+        if catalogFolder != nil,
            let cell = countButton.cell?.copy() as? NSButtonCell {
             // Avenir uses equal-width numerals. Measuring the last index reserves enough
             // space for every PDF in this folder, including digit-count transitions.
-            cell.title = "PDF \(catalog.count) of \(catalog.count)"
-            folderCounterWidth = min(112, ceil(cell.cellSize.width))
+            let digits = String(max(1, catalog.count)).count
+            cell.title = "PDF \(String(repeating: "8", count: digits)) of \(catalog.count)"
+            // Include the permanent chevron, and leave room for unusually large folders.
+            folderCounterWidth = min(186, max(ceil(cell.cellSize.width), ceil(countButton.intrinsicContentSize.width)))
         } else {
-            folderCounterWidth = min(112, ceil(countButton.intrinsicContentSize.width))
+            folderCounterWidth = min(186, ceil(countButton.intrinsicContentSize.width))
         }
         countButton.superview?.superview?.needsLayout = true
     }
     private func navigate(_ offset: Int) {
-        guard canStartAction, let url = source?.sourceURL else { return }
-        guard let index = catalog.firstIndex(where: { $0.standardizedFileURL == url.standardizedFileURL }) else { NSSound.beep(); return }
-        let next = index + offset
-        guard catalog.indices.contains(next) else { return }
-        requestOpen(catalog[next], resetZoom: false)
+        guard canStartAction, source != nil else { return }
+        guard let folder = catalogFolder else { NSSound.beep(); return }
+        transitionInFlight = true
+        Task {
+            defer { transitionInFlight = false; drainQueuedOpen() }
+            // Reconcile external additions, renames and removals before choosing a neighbour.
+            await refreshCatalog(folder)
+            guard let source else { return }
+            if let error = catalogError { presentError(error); return }
+            guard let index = FolderCatalog.index(of: source.sourceURL, identity: source.identity, in: catalogEntries) else {
+                presentError(PDFSupportError.fileAccess("The open PDF is no longer listed in this folder. Reopen it to resume folder navigation."))
+                return
+            }
+            let next = index + offset
+            guard catalog.indices.contains(next) else { return }
+            await load(catalog[next], resetZoom: false, refreshFolder: false)
+        }
     }
 
     @objc private func rotateCurrent() { rotate(indices: [pdfView.currentPageIndex]) }
@@ -904,7 +990,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         sourceLease?.stopAccessingSecurityScopedResource(); sourceLease = nil
         folderAccessGeneration += 1
         folderLease?.stopAccessingSecurityScopedResource(); folderLease = nil
-        catalog = []; catalogFolder = nil
+        catalog = []; catalogEntries = []; catalogError = nil; catalogFolder = nil
         nameField.stringValue = ""; pathField.stringValue = ""; sizeField.stringValue = ""; pageField.stringValue = ""; countButton.title = ""
         nameField.toolTip = nil; pathField.toolTip = nil; countButton.toolTip = nil
         sizeField.toolTip = nil; pageField.toolTip = nil
@@ -924,7 +1010,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         rotateMenuButton.isEnabled = enabled
         countButton.isEnabled = enabled
         if source == nil {
+            countButton.image = nil
             countButton.setAccessibilityLabel(nil)
+            countButton.setAccessibilityHelp(nil)
             folderCounterWidth = 112
         }
         leadingSeparator.isHidden = source == nil
@@ -959,7 +1047,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
         alert.leadingDelimiter = "• • •"
         alert.messageText = AppStyle.name
-        alert.informativeText = "• • •\n\nA private, minimal PDF viewer for Mac.\n\n• • •\n\nCreated by Nikhil Sharma\nMade with OpenAI ChatGPT models.\nLast updated: October 13, 2026\nVersion 1.8.1"
+        alert.informativeText = "• • •\n\nA private, minimal PDF viewer for Mac.\n\n• • •\n\nCreated by Nikhil Sharma\nMade with OpenAI ChatGPT models.\nLast updated: November 5, 2026\nVersion 1.9"
         alert.sectionDelimiter = "• • •"
         alert.closingText = "In loving memory of Jack, our sweetest companion and forever friend.\nYou are still in our hearts and our lives every day."
         alert.textAlignment = .center

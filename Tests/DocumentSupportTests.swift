@@ -26,6 +26,7 @@ private func expectFailure(_ message: String, operation: () async throws -> Void
 private final class MemoryDefaults: UserDefaults {
     private var storage: [String: Any] = [:]
     override func data(forKey defaultName: String) -> Data? { storage[defaultName] as? Data }
+    override func string(forKey defaultName: String) -> String? { storage[defaultName] as? String }
     override func set(_ value: Any?, forKey defaultName: String) { storage[defaultName] = value }
     override func removeObject(forKey defaultName: String) { storage.removeValue(forKey: defaultName) }
 }
@@ -155,6 +156,7 @@ private final class MemoryDefaults: UserDefaults {
         let catalog = try await FolderCatalog.scan(url: catalogDirectory)
         try expect(catalog.map(\.lastPathComponent) == ["Page 1.pdf", "Page 2.PDF", "Page 10.pdf"],
                    "Folder catalog must use natural filename order and only immediate visible regular PDFs")
+        try await checkFolderOrdering(in: catalogDirectory)
 
         let defaults = MemoryDefaults()
         let store = RecentFilesStore(defaults: defaults)
@@ -168,10 +170,16 @@ private final class MemoryDefaults: UserDefaults {
         let recent = directory.appendingPathComponent("Recent 7.pdf")
         store.record(url: recent)
         try expect(store.entries.count == 10 && store.entries.first?.url == recent, "History must deduplicate reordered entries")
+        let recentIDs = store.entries.map(\.id)
+        PDFSortOrder.creationDate.save(defaults: defaults)
+        try expect(RecentFilesStore(defaults: defaults).entries.map(\.id) == recentIDs,
+                   "Changing folder sort order must not reorder or modify recent-file history")
         try expect(store.resolve(store.entries[0]).standardizedFileURL == recent.standardizedFileURL, "Recent bookmarks must resolve")
         try expect(RecentFilesStore(defaults: defaults).entries.count == 10, "Recent history must survive store recreation")
         store.clear()
         try expect(store.entries.isEmpty && RecentFilesStore(defaults: defaults).entries.isEmpty, "Clear history must remove persisted entries")
+        try expect(PDFSortOrder.load(defaults: defaults) == .creationDate,
+                   "Clearing file history must not reset the harmless sorting preference")
         print("PASS: natural folder order, recent-file bookmarks, ten-item limit and clearing")
 
         // Permission failure must not make successfully viewed files disappear.
@@ -231,6 +239,106 @@ private final class MemoryDefaults: UserDefaults {
             try await checkLargeSnapshot(in: directory)
         }
         print("All DocumentSupport checks passed.")
+    }
+
+    private static func checkFolderOrdering(in directory: URL) async throws {
+        let base = Date(timeIntervalSince1970: 1_700_000_000)
+        func entry(_ name: String, _ offset: TimeInterval?) -> FolderPDF {
+            FolderPDF(url: directory.appendingPathComponent(name),
+                      creationDate: offset.map { base.addingTimeInterval($0) }, identity: nil)
+        }
+        func names(_ entries: [FolderPDF], _ order: PDFSortOrder) -> [String] {
+            FolderCatalog.ordered(entries, by: order).map { $0.url.lastPathComponent }
+        }
+        let precise = [entry("First alphabetically.pdf", 0.10), entry("Last alphabetically.pdf", 0.90),
+                       entry("Middle alphabetically.pdf", 0.50)]
+        try expect(names(precise, .creationDate) == ["Last alphabetically.pdf", "Middle alphabetically.pdf", "First alphabetically.pdf"],
+                   "Creation order must retain fractional seconds within the same second")
+        let tied = [entry("File 10.pdf", 1), entry("File 2.pdf", 1), entry("File 1.pdf", 1)]
+        try expect(names(tied, .creationDate) == ["File 1.pdf", "File 2.pdf", "File 10.pdf"],
+                   "Equal creation timestamps must break ties with natural filename ordering")
+        let missing = [entry("Unknown 10.pdf", nil), entry("Known older.pdf", -100), entry("Unknown 2.pdf", nil),
+                       entry("Known newer.pdf", 100)]
+        try expect(names(missing, .creationDate) == ["Known newer.pdf", "Known older.pdf", "Unknown 2.pdf", "Unknown 10.pdf"],
+                   "Unknown timestamps must remain included after dated files, in natural filename order")
+        let invalid = [FolderPDF(url: directory.appendingPathComponent("Unknown 1.pdf"),
+                                 creationDate: Date(timeIntervalSinceReferenceDate: .nan), identity: nil),
+                       FolderPDF(url: directory.appendingPathComponent("Unknown 3.pdf"),
+                                 creationDate: Date(timeIntervalSinceReferenceDate: .infinity), identity: nil),
+                       entry("Known.pdf", 0), entry("Unknown 2.pdf", nil)]
+        try expect(names(invalid, .creationDate) == ["Known.pdf", "Unknown 1.pdf", "Unknown 2.pdf", "Unknown 3.pdf"],
+                   "Invalid dates must behave like missing dates without breaking sorting")
+        let caseVariants = [entry("a 2.pdf", nil), entry("A 2.pdf", nil), entry("a 10.pdf", nil)]
+        let stableNames = names(caseVariants, .filename)
+        try expect(stableNames == names(Array(caseVariants.reversed()), .filename)
+                   && stableNames.last == "a 10.pdf", "Natural comparison ties must resolve deterministically")
+        try expect(names([], .creationDate).isEmpty && names([entry("Only.pdf", nil)], .creationDate) == ["Only.pdf"],
+                   "Empty and single-file folders must sort safely")
+
+        let defaults = MemoryDefaults()
+        try expect(PDFSortOrder.load(defaults: defaults) == .filename, "New users must retain natural filename order")
+        PDFSortOrder.creationDate.save(defaults: defaults)
+        try expect(PDFSortOrder.load(defaults: defaults) == .creationDate, "The selected order must survive preference reload")
+        PDFSortOrder.filename.save(defaults: defaults)
+        try expect(PDFSortOrder.load(defaults: defaults) == .filename, "Switching back to filename order must persist")
+        defaults.set("unknown-future-order", forKey: "pdfSortOrder")
+        try expect(PDFSortOrder.load(defaults: defaults) == .filename, "Unknown preferences must fall back safely")
+        defaults.set(123, forKey: "pdfSortOrder")
+        try expect(PDFSortOrder.load(defaults: defaults) == .filename, "Malformed preferences must fall back safely")
+        print("PASS: full-precision creation order, deterministic natural ties, missing/invalid dates and preference persistence")
+
+        // Give actual files different creation and modification rankings. These are
+        // test-owned files only; the production scan must never modify timestamps.
+        let creationOffsets: [(String, TimeInterval, TimeInterval)] = [
+            ("Page 1.pdf", 30, 100), ("Page 2.PDF", 10, 300), ("Page 10.pdf", 20, 200)
+        ]
+        for (name, created, modified) in creationOffsets {
+            try FileManager.default.setAttributes([.modificationDate: base.addingTimeInterval(modified),
+                                                    .creationDate: base.addingTimeInterval(created)],
+                                                   ofItemAtPath: directory.appendingPathComponent(name).path)
+        }
+        let entries = try await FolderCatalog.scanEntries(url: directory)
+        try expect(entries.count == 3 && entries.allSatisfy { $0.identity != nil && $0.creationDate != nil },
+                   "Filesystem scanning must read creation timestamps and identity for eligible files")
+        try expect(names(entries, .creationDate) == ["Page 1.pdf", "Page 10.pdf", "Page 2.PDF"],
+                   "Creation ordering must use filesystem creation time, not modification time")
+        let datedURLs = try await FolderCatalog.scan(url: directory, order: .creationDate)
+        try expect(datedURLs.map(\.lastPathComponent) == ["Page 1.pdf", "Page 10.pdf", "Page 2.PDF"],
+                   "Compatibility URL scan must honor the requested ordering")
+        for (name, created, _) in creationOffsets {
+            let values = try directory.appendingPathComponent(name).resourceValues(forKeys: [.creationDateKey])
+            try expect(values.creationDate == base.addingTimeInterval(created), "Scanning must leave source creation timestamps unchanged")
+        }
+
+        let original = directory.appendingPathComponent("Page 2.PDF")
+        let originalIdentity = try FileIdentity.capture(url: original)
+        try expect(FolderCatalog.index(of: original, identity: originalIdentity, in: entries) != nil,
+                   "Current document must be located by exact path and identity")
+        let renamed = directory.appendingPathComponent("Renamed.pdf")
+        try FileManager.default.moveItem(at: original, to: renamed)
+        let renamedEntries = try await FolderCatalog.scanEntries(url: directory)
+        let renamedIndex = FolderCatalog.index(of: original, identity: originalIdentity, in: renamedEntries)
+        try expect(renamedIndex.map { renamedEntries[$0].url == renamed } == true,
+                   "Renaming the current PDF must preserve its selection by filesystem identity")
+        try Data("replacement".utf8).write(to: original)
+        let replacedEntries = try await FolderCatalog.scanEntries(url: directory)
+        let retainedIndex = FolderCatalog.index(of: original, identity: originalIdentity, in: replacedEntries)
+        try expect(retainedIndex.map { replacedEntries[$0].url == renamed } == true,
+                   "A replacement at the old pathname must not be mistaken for the open document")
+        let linked = directory.appendingPathComponent("Another Name.pdf")
+        try FileManager.default.linkItem(at: renamed, to: linked)
+        let linkedEntries = try await FolderCatalog.scanEntries(url: directory)
+        try expect(FolderCatalog.index(of: original, identity: originalIdentity, in: linkedEntries) == nil,
+                   "Ambiguous renamed hard links must not silently select a different folder entry")
+        let exactLink = FolderCatalog.index(of: renamed, identity: originalIdentity, in: linkedEntries)
+        try expect(exactLink.map { linkedEntries[$0].url == renamed } == true,
+                   "An exact path remains unambiguous even when another hard link exists")
+        try FileManager.default.removeItem(at: renamed)
+        try FileManager.default.removeItem(at: linked)
+        let deletedEntries = try await FolderCatalog.scanEntries(url: directory)
+        try expect(FolderCatalog.index(of: original, identity: originalIdentity, in: deletedEntries) == nil,
+                   "A deleted open file must not match its replacement")
+        print("PASS: real creation-time scan, unchanged source timestamps, rename retention, replacement and hard-link ambiguity")
     }
 
     private static func checkLargeSnapshot(in directory: URL) async throws {
