@@ -1,5 +1,5 @@
 Jack's PDF — App text review
-Version: 1.9 · Prepared: November 5, 2026
+Version: 1.9.1 · Prepared: November 5, 2026
 185 numbered entries · 20 groups
 
 Complete review of app-defined wording and dynamic text templates, with tooltips, accessibility text and macOS-owned messages separated. Braces identify values supplied by a file, the reader state or macOS.
@@ -227,7 +227,7 @@ Note: Default order. The selected choice has a checkmark. Natural filename order
 
 [T198] Creation-order choice
 Trigger: The PDF order menu is open.
-Text: Creation date & time (newest first)
+Text: Creation date & time
 Ownership: App wording
 Note: Uses the full filesystem creation timestamp. The selected choice has a checkmark. The global choice is remembered between launches independently of history and folder permissions.
 
@@ -682,7 +682,7 @@ Ownership: App wording
 
 [T097] About information
 Trigger: About is open.
-Text: Version 1.9
+Text: Version 1.9.1
 Ownership: App wording
 
 [T139] About text delimiter

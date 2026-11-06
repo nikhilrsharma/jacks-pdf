@@ -249,3 +249,10 @@ Live visual checks confirmed the compact toolbar and matching About text. Instal
 - Isolated AppDelegate tests passed 68 layouts at 800, 999, 1000 and 1186 points, with virtual counts through 1,000,000 PDFs. Changing order preserves document identity, reading position, zoom, rotations, unsaved state and history. Actual asynchronous arrow navigation and the recovery menu were checked.
 - Live isolated-app checks confirmed the real dropdown, both navigation orders, and unchanged 100% zoom. Test documents/preferences/history were isolated from the production library.
 - Release preparation updated the nine-page PRD and the 185-entry wording inventory. Every installed bundle file matches the tested build. The app archive preserves those bytes and executable permissions without copying extended attributes or local user data.
+
+## Version 1.9.1 - November 5, 2026
+
+- Shortened the creation-order option to “Creation date & time”. The same title feeds its menu, tooltip and accessibility label. Navigation, ordering, preferences and file permissions are unchanged.
+- Release build 27 and strict signature verification passed. The installed executable contains the shortened label, and live startup completed. The previous 1.9 functional suite results remain applicable; no full suite rerun was needed for this wording-only change.
+- Updated the README, wording inventory and nine-page PRD. All rendered PRD pages were visually reviewed, with text and margin checks also passing.
+- Release packaging verifies identical files across the built, installed and extracted archive bundles, including executable permissions and the strict signature. Only intended source, artwork and documentation are included; no private data or signing identity was added.

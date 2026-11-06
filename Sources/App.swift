@@ -1047,7 +1047,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMe
         }
         alert.leadingDelimiter = "• • •"
         alert.messageText = AppStyle.name
-        alert.informativeText = "• • •\n\nA private, minimal PDF viewer for Mac.\n\n• • •\n\nCreated by Nikhil Sharma\nMade with OpenAI ChatGPT models.\nLast updated: November 5, 2026\nVersion 1.9"
+        alert.informativeText = "• • •\n\nA private, minimal PDF viewer for Mac.\n\n• • •\n\nCreated by Nikhil Sharma\nMade with OpenAI ChatGPT models.\nLast updated: November 5, 2026\nVersion 1.9.1"
         alert.sectionDelimiter = "• • •"
         alert.closingText = "In loving memory of Jack, our sweetest companion and forever friend.\nYou are still in our hearts and our lives every day."
         alert.textAlignment = .center

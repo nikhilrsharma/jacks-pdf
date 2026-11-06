@@ -289,7 +289,7 @@ enum PDFSortOrder: String, CaseIterable {
     var title: String {
         switch self {
         case .filename: return "Filename (A–Z)"
-        case .creationDate: return "Creation date & time (newest first)"
+        case .creationDate: return "Creation date & time"
         }
     }
 
